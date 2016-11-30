@@ -5,22 +5,23 @@
 <meta charset="utf-8">
 <title>SpeakerJS</title>
 
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script src="/static/js/modernizr.js"></script>
 
 </head>
 <body>
-<script type="text/javascript">
-if (Modernizr.getusermedia) {
-  window.alert("supported");
-} else {
-  window.alert("not supported");
-}
-</script>
 
 Hello World!
 
-<div class="no-getusermedia"><div class="box">no</div></div>
-<div class="getusermedia"><div class="box">yes</div></div>
+<div class="getusermedia">not supported</div>
+
+<script type="text/javascript">
+$(window).load(function() {
+  if (Modernizr.getusermedia) {
+    $("div.getusermedia").text("supported");
+  }
+});
+</script>
 
 </body>
 
