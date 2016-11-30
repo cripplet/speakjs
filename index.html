@@ -9,8 +9,18 @@
 
 </head>
 <body>
+<script type="text/javascript">
+if (Modernizr.getusermedia) {
+  window.alert("supported");
+} else {
+  window.alert("not supported");
+}
+</script>
 
 Hello World!
+
+<div class="no-getusermedia"><div class="box">no</div></div>
+<div class="getusermedia"><div class="box">yes</div></div>
 
 </body>
 
