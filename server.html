@@ -25,18 +25,18 @@ var configClientConn = function(conn) {
   connections[conn.peer] = {"metadata": conn}
   $("#connections").append("<div id=\"meta_" + conn.peer + "\">" + conn.open + "</div>");
   conn.on("open", function() {
-    $("meta_" + conn.peer).text(conn.open);
-    // conn.on("data", function(data) {
-    //   $("meta_" + conn.peer).text(data);
-    // });
+    $("#meta_" + conn.peer).text(conn.open);
+    conn.on("data", function(data) {
+      $("#meta_" + conn.peer).text(data);
+    });
   });
-  // conn.on("close", function() {
-    // $("#meta_" + conn.peer).remove();
-    // delete connections[conn.peer];
-  // });
-  // window.addEventListener("beforeunload", function(e) {
-    // conn.close();
-  // });
+  conn.on("close", function() {
+    $("#meta_" + conn.peer).remove();
+    delete connections[conn.peer];
+  });
+  window.addEventListener("beforeunload", function(e) {
+    conn.close();
+  });
 }
 
 var main = function() {
