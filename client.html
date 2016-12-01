@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article# " vocab="http://ogp.me/ns" lang="en">
+<head>
+
+<meta charset="utf-8">
+<title>SpeakerJS</title>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="/static/js/modernizr.js"></script>
+<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+
+</head>
+<body>
+
+CLIENT: <span id="home_id"></span><br/>
+connections: <div id="peers"></div>
+server: <span id="server_id"></span><br/>
+<input id="server_id_input" type="text" /><button id="connect">connect</button><br/>
+<input id="data_input" type="text" /><button id="send_data">send</button><br/>
+
+<audio autoplay>
+<source id="inputSource" type="audio/ogg" />
+</audio>
+
+<script type="text/javascript">
+var configFromServerConn = function(conn) {
+}
+var configToServerConn = function(conn) {
+  conn.on("close", function() {
+    // reset
+    $("#server_id").text("");
+  });
+  window.addEventListener("beforeunload", function(e) {
+    conn.close();
+  });
+}
+
+var main = function() {
+  var peer = new Peer({
+      key: "dnu57xap0ysyvi",
+      config: {
+          "iceServers": [
+              { url: "stun:stun.l.google.com:19302" },
+              { url: "turn:numb.viagenie.ca", username: "webrtc@live.com", credential: "muazkh" } 
+          ]
+      }
+  });
+  peer.on("open", function(id) {
+    $("span#home_id").text(id);
+  });
+  peer.on("connection", function(conn) {
+    configFromServerConn(conn);
+  });
+  $("#connect").click(function(e) {
+    var server_id = $("#server_id_input").val();
+    $("#server_id_input").val("");
+    $("#server_id").text(server_id);
+    var metadataConn = peer.connect(server_id, {"reliable": true}); // TCP for metadata
+    if (metadataConn.peer) {
+      configToServerConn(metadataConn);
+    }
+    metadataConn.on("open", function(e) {
+      $("#send_data").click(function(e) {
+        var data = $("#data_input").val();
+        metadataConn.send($("data_input").val());
+        $("#data_input").val("");
+      });
+    });
+  });
+};
+
+$(document).ready(function() { main(); });
+</script>
+
+</body>
+
+</html>
