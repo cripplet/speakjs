@@ -21,22 +21,38 @@ connections: <div id="connections"></div>
 
 <script type="text/javascript">
 var connections = {};
-var configClientConn = function(conn) {
-  connections[conn.peer] = {"metadata": conn}
-  $("#connections").append("<div id=\"meta_" + conn.peer + "\">" + conn.open + "</div>");
-  conn.on("open", function() {
-    $("#meta_" + conn.peer).text(conn.open);
-    conn.on("data", function(data) {
-      $("#meta_" + conn.peer).text(data);
+var configDataConn = function(conn) {
+  if (conn.label === "metadata") {
+    connections[conn.peer] = {"metadata": conn}
+    $("#connections").append("<div id=\"" + conn.peer + "\"><div class=\"peer_id\"></div><div class=\"meta_open\">false</div><div class=\"chat_open\">false</div><div class=\"last_data\"></div><div class=\"username\"></div></div>");
+    $("div.peer_id", "#" + conn.peer).text(conn.peer);
+    conn.on("open", function() {
+      $("div.meta_open", "#" + conn.peer).text(conn.open);
+      conn.on("data", function(data) {
+        connections[conn.peer]["username"] = data;
+        $("div.username", "#" + conn.peer).text(data);
+      });
     });
-  });
-  conn.on("close", function() {
-    $("#meta_" + conn.peer).remove();
-    delete connections[conn.peer];
-  });
-  window.addEventListener("beforeunload", function(e) {
-    conn.close();
-  });
+    conn.on("close", function() {
+      $(conn.peer).remove();
+      delete connections[conn.peer];
+    });
+  } else if (conn.label === "chat") {
+    conn.on("open", function() {
+      $("div.chat_open", "#" + conn.peer).text(conn.open);
+      conn.on("data", function(data) {
+        $("div.last_data", "#" + conn.peer).text(data);
+        var chat_msg = {"type": 0, "username": connections[conn.peer]["username"], "message": data} // race?
+        for (var c in connections) {
+          connections[c]["chat"].send(JSON.stringify(chat_msg));
+        }
+      });
+    });
+    conn.on("close", function() {
+      $("div.chat_open", "#" + conn.peer).text("false");
+    });
+    connections[conn.peer]["chat"] = conn;
+  }
 }
 
 var main = function() {
@@ -49,11 +65,14 @@ var main = function() {
           ]
       }
   });
+  window.addEventListener("unload", function(e) {
+    peer.destroy();
+  });
   peer.on("open", function(id) {
     $("span#home_id").text(id);
   });
   peer.on("connection", function(conn) {
-    configClientConn(conn);
+    configDataConn(conn);
   });
 };
 

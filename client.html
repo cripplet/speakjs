@@ -16,8 +16,15 @@ CLIENT: <span id="home_id"></span><br/>
 connections: <div id="peers"></div>
 server: <span id="server_id"></span><br/>
 connected_to_server: <span id="server_conn_status">false</span><br/>
-<input id="server_id_input" type="text" /><button id="connect">connect</button><br/>
-<input id="data_input" type="text" /><button id="send_data">send</button><br/>
+connected_to_server_chat: <span id="server_chat_status">false</span><br/>
+username: <span id="username"></span><br/>
+<input id="server_id_input" type="text" />
+<input id="input_username" type="text" />
+<button id="connect">connect</button><br/>
+<input id="input_chat" type="text" />
+<button id="button_chat">send</button>
+LOG<br/>
+<div id="log"></div>
 
 <audio autoplay>
 <source id="inputSource" type="audio/ogg" />
@@ -26,22 +33,36 @@ connected_to_server: <span id="server_conn_status">false</span><br/>
 <script type="text/javascript">
 var configFromServerConn = function(conn) {
 }
-var configToServerConn = function(conn) {
+
+var configChatConn = function(conn) {
   conn.on("open", function() {
-    $("#server_conn_status").text(conn.open);
-    $("#send_data").click(function(e) {
-      var data = $("#data_input").val();
-      conn.send(data);
-      $("#data_input").val("");
+    $("#server_chat_status").text(conn.open);
+    $("#button_chat").click(function(e) {
+      var m = $("#input_chat").val();
+      conn.send(m);
+      $("#input_chat").val("");
+    });
+    conn.on("data", function(data) {
+      $("#log").append($("<div>").text(data));
     });
   });
   conn.on("close", function() {
+    $("#server_chat_status").text("false");
+  });
+}
+var configMetadataConn = function(conn) {
+  conn.on("open", function() {
+    $("#server_conn_status").text(conn.open);
+    var username = $("#input_username").val();
+    conn.send(username);
+    $("#input_username").val("");
+    $("#username").text(username);
+  });
+  conn.on("close", function() {
     // reset
+    $("#username").text("");
     $("#server_conn_status").text("false");
     $("#server_id").text("");
-  });
-  window.addEventListener("beforeunload", function(e) {
-    conn.close();
   });
 }
 
@@ -55,6 +76,9 @@ var main = function() {
           ]
       }
   });
+  window.addEventListener("unload", function(e) {
+    peer.destroy();
+  });
   peer.on("open", function(id) {
     $("span#home_id").text(id);
   });
@@ -67,9 +91,13 @@ var main = function() {
     var server_id = $("#server_id_input").val();
     $("#server_id_input").val("");
     $("#server_id").text(server_id);
-    var metadataConn = peer.connect(server_id, {"reliable": true}); // TCP for metadata
+    var metadataConn = peer.connect(server_id, {"reliable": true, "label": "metadata"}); // TCP for metadata
     if (metadataConn.peer) {
-      configToServerConn(metadataConn);
+      configMetadataConn(metadataConn);
+    }
+    var chatConn = peer.connect(server_id, {"reliable": true, "label": "chat"});
+    if (chatConn.peer) {
+      configChatConn(chatConn);
     }
   });
 };
