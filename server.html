@@ -80,6 +80,11 @@ var configVoiceConn = function(call, peer) {
       $("div.voice_open", "#" + call.peer).text(call.open);
       connections[call.peer]["metadata"].send({"type": 3});
 
+      var x = $("<audio autoplay />");
+      $("body").append(x);
+      x[0].src = (URL || webkitURL || mozURL).createObjectURL(stream)
+      x[0].volume = 0;
+
       for (var c in connections) {  // minke
         // send everyone's voice call to new conn
         connections[call.peer]["outbound"][c] = peer.call(call.peer, stream, {"metadata": {"label": c}});  // update new voice

@@ -25,10 +25,6 @@ username: <span id="username"></span><br/>
 LOG
 <div id="log"></div>
 
-<audio autoplay>
-<source id="inputSource" type="audio/ogg" />
-</audio>
-
 <script type="text/javascript">
 var form = `
 <input id="server_id_input" type="text" />
@@ -88,10 +84,11 @@ var configMetadataConn = function(conn, username, peer) {
           new_peer.append($("<br/>"));
           new_peer.append(peer_status);
 
-          // TODO: remove if c == self
-          var peer_audio = $("<div>");
-          peer_audio.html("<audio autoplay />");
-          new_peer.append(peer_audio);
+          if (peer.id != data["id"]) {  // do not play self
+            var peer_audio = $("<div>");
+            peer_audio.html("<audio autoplay />");
+            new_peer.append(peer_audio);
+          }
 
           $("#peers").append(new_peer);
         }
@@ -110,9 +107,10 @@ var configMetadataConn = function(conn, username, peer) {
             $(".voice_stat", "#" + call.metadata["label"]).text(call.open);
             connections[call.metadata["label"]]["voice"] = call;
 
-            // TODO: filter if c == self
-            var aud = $("audio", "#" + call.metadata["label"])[0];
-            aud.src = (URL || webkitURL || mozURL).createObjectURL(stream);
+            if (peer.id != call.metadata["label"]) {  // do not play self
+              var aud = $("audio", "#" + call.metadata["label"])[0];
+              aud.src = (URL || webkitURL || mozURL).createObjectURL(stream);
+            }
           }
         });
       }
