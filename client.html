@@ -17,6 +17,7 @@ PEERS: <div id="peers"></div>
 server: <span id="server_id"></span><br/>
 connected_to_server: <span id="server_conn_status">false</span><br/>
 connected_to_server_chat: <span id="server_chat_status">false</span><br/>
+connected_to_server_voice: <span id="server_voice_status">false</span><br/>
 username: <span id="username"></span><br/>
 <div id="connect_div"></div>
 <input id="input_chat" type="text" />
@@ -47,9 +48,8 @@ var configChatConn = function(conn) {
       $("#input_chat").val("");
     });
     conn.on("data", function(data) {
-      var msg = JSON.parse(data);
-      if (msg["type"] === 0) { // normal message
-        var str_msg = msg["username"] + ": " + msg["message"];
+      if (data["type"] === 0) { // normal message
+        var str_msg = data["username"] + ": " + data["message"];
         $("#log").prepend($("<div>").text(str_msg));
       }
     });
@@ -59,27 +59,70 @@ var configChatConn = function(conn) {
   });
 }
 
-var configMetadataConn = function(conn, username) {
+var configMetadataConn = function(conn, username, peer) {
+  var connections = {};
   conn.on("open", function() {
     $("#server_conn_status").text(conn.open);
-    conn.send(JSON.stringify({"type": 0, "username": username}));
+    conn.send({"type": 0, "username": username});
     $("#input_username").val("");
     $("#username").text(username);
 
     conn.on("data", function(data) {
-      var msg = JSON.parse(data);
-      if (msg["type"] === 1) {
-        if ($("#" + msg["id"]).length) {  // rename
-          $("#" + msg["id"]).text(msg["username"]);
+      if (data["type"] === 1) {
+        if ($("#" + data["id"]).length) {  // rename
+          $("#" + data["id"]).text(data["username"]);
         } else {
+          connections[data["id"]] = {};
           var new_peer = $("<div>");
-          new_peer.attr("id", msg["id"]);
-          new_peer.text(msg["username"]);
+          new_peer.attr("id", data["id"]);
+
+          var peer_id = $("<span>");
+          peer_id.text(data["username"]);
+          peer_id.attr("class", "peer_id");
+
+          var peer_status = $("<span>");
+          peer_status.attr("class", "voice_stat");
+          peer_status.text("false");
+
+          new_peer.append(peer_id);
+          new_peer.append($("<br/>"));
+          new_peer.append(peer_status);
+
+          // TODO: remove if c == self
+          var peer_audio = $("<div>");
+          peer_audio.html("<audio autoplay />");
+          new_peer.append(peer_audio);
+
           $("#peers").append(new_peer);
         }
-      } else if (msg["type"] === 2) {
-        $("#" + msg["id"]).remove();
+      } else if (data["type"] === 2) {
+        $("#" + data["id"]).remove();
+      } else if (data["type"] === 3) {
+        $("#server_voice_status").text("true");
       }
+    });
+
+    peer.on("call", function(call) {
+      if ($("#" + call.metadata["label"]).length) {
+        call.answer();
+        console.log({"peer": call.peer, "stat": call.open});
+        call.on("stream", function(stream) {
+          if (!connections[call.metadata["label"]].hasOwnProperty("voice")) {
+            $(".voice_stat", "#" + call.metadata["label"]).text(call.open);
+            connections[call.metadata["label"]]["voice"] = call;
+
+            // TODO: filter if c == self
+            var aud = $("audio", "#" + call.metadata["label"])[0];
+            var url = window.URL || window.webkitURL;
+            aud.src = (URL || webkitURL || mozURL).createObjectURL(stream);
+          }
+        });
+      }
+    });
+
+    navigator.mediaDevices.getUserMedia({video: false, audio: true}).then(function(stream) {
+      peer.call(conn.peer, stream);
+    }).catch(function(e) {
     });
   });
   conn.on("close", function() {
@@ -95,7 +138,6 @@ var configMetadataConn = function(conn, username) {
 var main = function() {
   $("#connect_div").html(form);
 
-
   var peer = new Peer({
       key: "dnu57xap0ysyvi",
       config: {
@@ -108,12 +150,17 @@ var main = function() {
   window.addEventListener("unload", function(e) {
     peer.destroy();
   });
+
   peer.on("open", function(id) {
     $("span#home_id").text(id);
   });
 
   peer.on("connection", function(conn) {
     configFromServerConn(conn);
+  });
+
+  peer.on("error", function(e) {
+    console.log(e);
   });
 
   $("#connect").click(function(e) {
@@ -123,7 +170,7 @@ var main = function() {
     var username = $("#input_username").val();
     var metadataConn = peer.connect(server_id, {"reliable": true, "label": "metadata"}); // TCP for metadata
     if (metadataConn.peer) {
-      configMetadataConn(metadataConn, username);
+      configMetadataConn(metadataConn, username, peer);
     }
     var chatConn = peer.connect(server_id, {"reliable": true, "label": "chat"});
     if (chatConn.peer) {

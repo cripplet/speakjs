@@ -24,22 +24,21 @@ var connections = {};
 var configDataConn = function(conn) {
   if (conn.label === "metadata") {
     if(connections.hasOwnProperty(conn.peer)) { return; }
-    connections[conn.peer] = {"metadata": conn}
-    $("#connections").append("<div id=\"" + conn.peer + "\"><div class=\"peer_id\"></div><div class=\"meta_open\">false</div><div class=\"chat_open\">false</div><div class=\"last_data\"></div><div class=\"username\"></div></div>");
+    connections[conn.peer] = {"metadata": conn};
+    $("#connections").append("<div id=\"" + conn.peer + "\"><div class=\"peer_id\"></div><div class=\"meta_open\">false</div><div class=\"chat_open\">false</div><div class=\"voice_open\">false</div><div class=\"last_data\"></div><div class=\"username\"></div></div>");
     $("div.peer_id", "#" + conn.peer).text(conn.peer);
     conn.on("open", function() {
       $("div.meta_open", "#" + conn.peer).text(conn.open);
       conn.on("data", function(data) {
-        var msg = JSON.parse(data);
-        if (msg["type"] === 0) {  // set username
-          connections[conn.peer]["username"] = msg["username"];
-          $("div.username", "#" + conn.peer).text(msg["username"]);
+        if (data["type"] === 0) {  // set username
+          connections[conn.peer]["username"] = data["username"];
+          $("div.username", "#" + conn.peer).text(data["username"]);
           for (var c in connections) {
             // send everyone's username to new conn
-            conn.send(JSON.stringify({"type": 1, "username": connections[c]["username"], "id": c}));  // NEWNAME_ACK
+            conn.send({"type": 1, "username": connections[c]["username"], "id": c});  // NEWNAME_ACK
             // send username to everyone
             if (c != conn.peer) {
-              connections[c]["metadata"].send(JSON.stringify({"type": 1, "username": msg["username"], "id": conn.peer}));
+              connections[c]["metadata"].send({"type": 1, "username": data["username"], "id": conn.peer});
             }
           }
         }
@@ -49,7 +48,7 @@ var configDataConn = function(conn) {
       delete connections[conn.peer];
       $("#" + conn.peer).remove();
       for (var c in connections) {
-        connections[c]["metadata"].send(JSON.stringify({"type": 2, "id": conn.peer}));  // DISCON
+        connections[c]["metadata"].send({"type": 2, "id": conn.peer});  // DISCON
       }
     });
   } else if (conn.label === "chat") {
@@ -58,9 +57,9 @@ var configDataConn = function(conn) {
       $("div.chat_open", "#" + conn.peer).text(conn.open);
       conn.on("data", function(data) {
         $("div.last_data", "#" + conn.peer).text(data);
-        var chat_msg = {"type": 0, "username": connections[conn.peer]["username"], "message": data} // race?
+        var chat_msg = {"type": 0, "username": connections[conn.peer]["username"], "message": data}; // race?
         for (var c in connections) {
-          connections[c]["chat"].send(JSON.stringify(chat_msg));
+          connections[c]["chat"].send(chat_msg);
         }
       });
     });
@@ -68,6 +67,28 @@ var configDataConn = function(conn) {
       $("div.chat_open", "#" + conn.peer).text("false");
     });
     connections[conn.peer]["chat"] = conn;
+  }
+}
+
+var configVoiceConn = function(call, peer) {
+  if (connections.hasOwnProperty(call.peer) && !connections[call.peer].hasOwnProperty("inbound")) {
+    connections[call.peer]["inbound"] = call;
+    connections[call.peer]["outbound"] = {};
+
+    call.answer();
+    call.on("stream", function(stream) {
+      $("div.voice_open", "#" + call.peer).text(call.open);
+      connections[call.peer]["metadata"].send({"type": 3});
+
+
+      for (var c in connections) {  // minke
+        // send everyone's voice call to new conn
+        connections[call.peer]["outbound"][c] = peer.call(call.peer, stream, {"metadata": {"label": c}});  // update new voice
+        if (c != call.peer) {
+          connections[c]["outbound"][call.peer] = peer.call(c, stream, {"metadata": {"label": call.peer}});  // update old voices
+        }
+      }
+    });
   }
 }
 
@@ -89,6 +110,12 @@ var main = function() {
   });
   peer.on("connection", function(conn) {
     configDataConn(conn);
+  });
+  peer.on("call", function(call) {
+    configVoiceConn(call, peer);
+  });
+  peer.on("error", function(e) {
+    console.log(e);
   });
 };
 
