@@ -105,7 +105,6 @@ var configMetadataConn = function(conn, username, peer) {
     peer.on("call", function(call) {
       if ($("#" + call.metadata["label"]).length) {
         call.answer();
-        console.log({"peer": call.peer, "stat": call.open});
         call.on("stream", function(stream) {
           if (!connections[call.metadata["label"]].hasOwnProperty("voice")) {
             $(".voice_stat", "#" + call.metadata["label"]).text(call.open);
@@ -113,7 +112,6 @@ var configMetadataConn = function(conn, username, peer) {
 
             // TODO: filter if c == self
             var aud = $("audio", "#" + call.metadata["label"])[0];
-            var url = window.URL || window.webkitURL;
             aud.src = (URL || webkitURL || mozURL).createObjectURL(stream);
           }
         });
