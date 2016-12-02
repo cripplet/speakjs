@@ -34,7 +34,7 @@ var configDataConn = function(conn) {
       });
     });
     conn.on("close", function() {
-      $(conn.peer).remove();
+      $("#" + conn.peer).remove();
       delete connections[conn.peer];
     });
   } else if (conn.label === "chat") {
