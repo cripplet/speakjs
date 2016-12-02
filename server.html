@@ -86,9 +86,10 @@ var configVoiceConn = function(call, peer) {
       x[0].volume = 0;
 
       for (var c in connections) {  // minke
-        // send everyone's voice call to new conn
-        connections[call.peer]["outbound"][c] = peer.call(call.peer, stream, {"metadata": {"label": c}});  // update new voice
         if (c != call.peer) {
+          // send everyone's voice call to new conn
+          connections[call.peer]["outbound"][c] = peer.call(call.peer, stream, {"metadata": {"label": c}});  // update new voice
+
           connections[c]["outbound"][call.peer] = peer.call(c, stream, {"metadata": {"label": call.peer}});  // update old voices
         }
       }
