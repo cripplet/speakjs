@@ -23,21 +23,37 @@ connections: <div id="connections"></div>
 var connections = {};
 var configDataConn = function(conn) {
   if (conn.label === "metadata") {
+    if(connections.hasOwnProperty(conn.peer)) { return; }
     connections[conn.peer] = {"metadata": conn}
     $("#connections").append("<div id=\"" + conn.peer + "\"><div class=\"peer_id\"></div><div class=\"meta_open\">false</div><div class=\"chat_open\">false</div><div class=\"last_data\"></div><div class=\"username\"></div></div>");
     $("div.peer_id", "#" + conn.peer).text(conn.peer);
     conn.on("open", function() {
       $("div.meta_open", "#" + conn.peer).text(conn.open);
       conn.on("data", function(data) {
-        connections[conn.peer]["username"] = data;
-        $("div.username", "#" + conn.peer).text(data);
+        var msg = JSON.parse(data);
+        if (msg["type"] === 0) {  // set username
+          connections[conn.peer]["username"] = msg["username"];
+          $("div.username", "#" + conn.peer).text(msg["username"]);
+          for (var c in connections) {
+            // send everyone's username to new conn
+            conn.send(JSON.stringify({"type": 1, "username": connections[c]["username"], "id": c}));  // NEWNAME_ACK
+            // send username to everyone
+            if (c != conn.peer) {
+              connections[c]["metadata"].send(JSON.stringify({"type": 1, "username": msg["username"], "id": conn.peer}));
+            }
+          }
+        }
       });
     });
     conn.on("close", function() {
-      $("#" + conn.peer).remove();
       delete connections[conn.peer];
+      $("#" + conn.peer).remove();
+      for (var c in connections) {
+        connections[c]["metadata"].send(JSON.stringify({"type": 2, "id": conn.peer}));  // DISCON
+      }
     });
   } else if (conn.label === "chat") {
+    if (connections[conn.peer].hasOwnProperty("chat")) { return; }
     conn.on("open", function() {
       $("div.chat_open", "#" + conn.peer).text(conn.open);
       conn.on("data", function(data) {

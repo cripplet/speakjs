@@ -13,17 +13,15 @@
 <body>
 
 CLIENT: <span id="home_id"></span><br/>
-connections: <div id="peers"></div>
+PEERS: <div id="peers"></div>
 server: <span id="server_id"></span><br/>
 connected_to_server: <span id="server_conn_status">false</span><br/>
 connected_to_server_chat: <span id="server_chat_status">false</span><br/>
 username: <span id="username"></span><br/>
-<input id="server_id_input" type="text" />
-<input id="input_username" type="text" />
-<button id="connect">connect</button><br/>
+<div id="connect_div"></div>
 <input id="input_chat" type="text" />
 <button id="button_chat">send</button>
-LOG<br/>
+LOG
 <div id="log"></div>
 
 <audio autoplay>
@@ -31,6 +29,12 @@ LOG<br/>
 </audio>
 
 <script type="text/javascript">
+var form = `
+<input id="server_id_input" type="text" />
+<input id="input_username" type="text" />
+<button id="connect">connect</button><br/>
+`
+
 var configFromServerConn = function(conn) {
 }
 
@@ -43,30 +47,55 @@ var configChatConn = function(conn) {
       $("#input_chat").val("");
     });
     conn.on("data", function(data) {
-      $("#log").append($("<div>").text(data));
+      var msg = JSON.parse(data);
+      if (msg["type"] === 0) { // normal message
+        var str_msg = msg["username"] + ": " + msg["message"];
+        $("#log").prepend($("<div>").text(str_msg));
+      }
     });
   });
   conn.on("close", function() {
     $("#server_chat_status").text("false");
   });
 }
-var configMetadataConn = function(conn) {
+
+var configMetadataConn = function(conn, username) {
   conn.on("open", function() {
     $("#server_conn_status").text(conn.open);
-    var username = $("#input_username").val();
-    conn.send(username);
+    conn.send(JSON.stringify({"type": 0, "username": username}));
     $("#input_username").val("");
     $("#username").text(username);
+
+    conn.on("data", function(data) {
+      var msg = JSON.parse(data);
+      if (msg["type"] === 1) {
+        if ($("#" + msg["id"]).length) {  // rename
+          $("#" + msg["id"]).text(msg["username"]);
+        } else {
+          var new_peer = $("<div>");
+          new_peer.attr("id", msg["id"]);
+          new_peer.text(msg["username"]);
+          $("#peers").append(new_peer);
+        }
+      } else if (msg["type"] === 2) {
+        $("#" + msg["id"]).remove();
+      }
+    });
   });
   conn.on("close", function() {
     // reset
     $("#username").text("");
     $("#server_conn_status").text("false");
     $("#server_id").text("");
+    $("#peers").html("");
+    $("#connect_div").html(form);
   });
 }
 
 var main = function() {
+  $("#connect_div").html(form);
+
+
   var peer = new Peer({
       key: "dnu57xap0ysyvi",
       config: {
@@ -91,13 +120,15 @@ var main = function() {
     var server_id = $("#server_id_input").val();
     $("#server_id_input").val("");
     $("#server_id").text(server_id);
+    var username = $("#input_username").val();
     var metadataConn = peer.connect(server_id, {"reliable": true, "label": "metadata"}); // TCP for metadata
     if (metadataConn.peer) {
-      configMetadataConn(metadataConn);
+      configMetadataConn(metadataConn, username);
     }
     var chatConn = peer.connect(server_id, {"reliable": true, "label": "chat"});
     if (chatConn.peer) {
       configChatConn(chatConn);
+      $("#connect_div").html("");
     }
   });
 };
