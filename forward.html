@@ -16,22 +16,44 @@
 <div id="forward_id_wrap">FORWARD ID: <span class="value" id="forward_id"></span></div>
 <div id="init_status_wrap">INIT STATUS: <span class="value" id="init_status"></span></div>
 
+<div id="connect_recv_wrap">
+<input id="connect_recv_wrap_input" type="text" disabled />
+<button id="connect_recv_wrap_submit" disabled>call forward</button>
+</div>
+
 <script type="text/javascript">
 var peer = new Peer(config);
 var forward_id = $("span#forward_id");
 var init_status = $("span#init_status");
+var connect_recv_wrap_input = $("input#connect_recv_wrap_input");
+var connect_recv_wrap_submit = $("button#connect_recv_wrap_submit");
+
+var init_id = null;
+var init_stream = null;
+
+var connectRecvWrapSubmitOnClick = function() {
+  recv_id = connect_recv_wrap_input.val();
+  connect_recv_wrap_input.val("");
+  peer.call(recv_id, init_stream);
+}
 
 var callOnStream = function(stream) {
+  init_stream = stream;
+
   var audio = $("<audio autoplay />");
+  audio[0].volume = 0.0;
   audio[0].src = (URL || webkitURL || mozURL).createObjectURL(stream);
+
+  connect_recv_wrap_input.prop("disabled", false);
+  connect_recv_wrap_submit.click(connectRecvWrapSubmitOnClick);
+  connect_recv_wrap_submit.prop("disabled", false);
 }
 
 var peerOnCall = function(call) {
-  navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
-    call.answer(stream);
-    init_status.text("connected");
-    call.on("stream", callOnStream);
-  });
+  init_id = call.peer;
+  call.answer();
+  init_status.text("connected");
+  call.on("stream", callOnStream);
 }
 
 var peerOnOpen = function(id) {
