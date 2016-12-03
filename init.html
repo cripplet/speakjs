@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article# " vocab="http://ogp.me/ns" lang="en">
+<head>
+
+<meta charset="utf-8">
+<title>SpeakerJS</title>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="/static/js/modernizr.js"></script>
+<script src="/static/js/config.js"></script>
+<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+
+</head>
+<body>
+
+<div id="init_id_wrap">INIT ID: <span class="value" id="init_id"></span></div>
+
+<div id="connect_forward_wrap">
+<input id="connect_forward_wrap_input" type="text" disabled />
+<button id="connect_forward_wrap_submit" disabled>call forward</button>
+</div>
+
+<script type="text/javascript">
+var peer = new Peer(config);
+var init_id = $("span#init_id");
+var connect_forward_wrap_input = $("input#connect_forward_wrap_input");
+var connect_forward_wrap_submit = $("button#connect_forward_wrap_submit");
+
+var callOnStream = function(stream) {
+  var audio = $("<audio autoplay />");
+  audio[0].src = (URL || webkitURL || mozURL).createObjectURL(stream);
+}
+
+var connectForwardWrapSubmitOnClick = function() {
+  var forward_id = connect_forward_wrap_input.val();
+  connect_forward_wrap_input.val("");
+  navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+    var call = peer.call(forward_id, stream);
+    call.on("stream", callOnStream);
+  });
+}
+
+var peerOnOpen = function(id) {
+  init_id.text(id);
+  connect_forward_wrap_input.prop("disabled", false);
+  connect_forward_wrap_submit.click(connectForwardWrapSubmitOnClick);
+  connect_forward_wrap_submit.prop("disabled", false);
+}
+
+$(document).ready(function() {
+  peer.on("open", peerOnOpen);
+});
+
+</script>
+
+</body>
+</html>
