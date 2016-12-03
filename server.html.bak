@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article# " vocab="http://ogp.me/ns" lang="en">
+<head>
+
+<meta charset="utf-8">
+<title>SpeakerJS</title>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script src="/static/js/modernizr.js"></script>
+<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+
+</head>
+<body>
+
+SERVER: <span id="home_id"></span><br/>
+connections: <div id="connections"></div>
+
+<audio autoplay>
+<source id="inputSource" type="audio/ogg" />
+</audio>
+
+<script type="text/javascript">
+var connections = {};
+var configDataConn = function(conn) {
+  if (conn.label === "metadata") {
+    if(connections.hasOwnProperty(conn.peer)) { return; }
+    connections[conn.peer] = {"metadata": conn};
+    $("#connections").append("<div id=\"" + conn.peer + "\"><div class=\"peer_id\"></div><div class=\"meta_open\">false</div><div class=\"chat_open\">false</div><div class=\"voice_open\">false</div><div class=\"last_data\"></div><div class=\"username\"></div></div>");
+    $("div.peer_id", "#" + conn.peer).text(conn.peer);
+    conn.on("open", function() {
+      $("div.meta_open", "#" + conn.peer).text(conn.open);
+      conn.on("data", function(data) {
+        if (data["type"] === 0) {  // set username
+          connections[conn.peer]["username"] = data["username"];
+          $("div.username", "#" + conn.peer).text(data["username"]);
+          for (var c in connections) {
+            // send everyone's username to new conn
+            conn.send({"type": 1, "username": connections[c]["username"], "id": c});  // NEWNAME_ACK
+            // send username to everyone
+            if (c != conn.peer) {
+              connections[c]["metadata"].send({"type": 1, "username": data["username"], "id": conn.peer});
+            }
+          }
+        }
+      });
+    });
+    conn.on("close", function() {
+      delete connections[conn.peer];
+      $("#" + conn.peer).remove();
+      for (var c in connections) {
+        connections[c]["metadata"].send({"type": 2, "id": conn.peer});  // DISCON
+      }
+    });
+  } else if (conn.label === "chat") {
+    if (connections[conn.peer].hasOwnProperty("chat")) { return; }
+    conn.on("open", function() {
+      $("div.chat_open", "#" + conn.peer).text(conn.open);
+      conn.on("data", function(data) {
+        $("div.last_data", "#" + conn.peer).text(data);
+        var chat_msg = {"type": 0, "username": connections[conn.peer]["username"], "message": data}; // race?
+        for (var c in connections) {
+          connections[c]["chat"].send(chat_msg);
+        }
+      });
+    });
+    conn.on("close", function() {
+      $("div.chat_open", "#" + conn.peer).text("false");
+    });
+    connections[conn.peer]["chat"] = conn;
+  }
+}
+
+var configVoiceConn = function(call, peer) {
+  if (connections.hasOwnProperty(call.peer) && !connections[call.peer].hasOwnProperty("inbound")) {
+    connections[call.peer]["inbound"] = call;
+    connections[call.peer]["outbound"] = {};
+
+    call.answer();
+    call.on("stream", function(stream) {
+      $("div.voice_open", "#" + call.peer).text(call.open);
+      connections[call.peer]["metadata"].send({"type": 3});
+
+      var x = $("<audio autoplay />");
+      $("body").append(x);
+      x[0].src = (URL || webkitURL || mozURL).createObjectURL(stream)
+      x[0].volume = 0;
+
+      for (var c in connections) {  // minke
+        if (c != call.peer) {
+          // send everyone's voice call to new conn
+          connections[call.peer]["outbound"][c] = peer.call(call.peer, stream, {"metadata": {"label": c}});  // update new voice
+
+          connections[c]["outbound"][call.peer] = peer.call(c, stream, {"metadata": {"label": call.peer}});  // update old voices
+        }
+      }
+    });
+  }
+}
+
+var main = function() {
+  var peer = new Peer({
+      key: "dnu57xap0ysyvi", 
+      config: {
+          "iceServers": [
+              { url: "stun:stun.l.google.com:19302" },
+              { url: "turn:numb.viagenie.ca", username: "webrtc@live.com", credential: "muazkh" }
+          ]
+      }
+  });
+  window.addEventListener("unload", function(e) {
+    peer.destroy();
+  });
+  peer.on("open", function(id) {
+    $("span#home_id").text(id);
+  });
+  peer.on("connection", function(conn) {
+    configDataConn(conn);
+  });
+  peer.on("call", function(call) {
+    configVoiceConn(call, peer);
+  });
+  peer.on("error", function(e) {
+    console.log(e);
+  });
+};
+
+$(document).ready(function() { main(); });
+</script>
+
+</body>
+
+</html>

@@ -3,128 +3,166 @@
 <head>
 
 <meta charset="utf-8">
-<title>SpeakerJS</title>
+<title>SpeakerJS Server</title>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-<script src="/static/js/modernizr.js"></script>
-<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://gist.githubusercontent.com/nathansmith/288292/raw/f681bf457a90e61f535610b097117d19ca8142a5/html_reset.css" />
+
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="/static/js/modernizr.js"></script>
+<script type="text/javascript" src="/static/js/config.js"></script>
+<script type="text/javascript" src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.6/handlebars.min.js"></script>
+
+<style>
+  label { display: none; }
+</style>
+
+<script id="client_entry_template" type="text/x-handlebars-template">
+  <dt id="client_{{client_entry_id}}_key">{{client_entry_username}}</dt>
+  <dd id="client_{{client_entry_id}}_val">
+    <dl id="client_{{client_entry_id}}_metadata">
+      <dt id="client_{{client_entry_id}}_metadata_status_key">status</dt>
+      <dd id="client_{{client_entry_id}}_metadata_status_val"></dd>
+      <dt id="client_{{client_entry_id}}_metadata_last_message_key">last message received</dt>
+      <dd id="client_{{client_entry_id}}_metadata_last_message_val"></dd>
+    </dl>
+  </dd>
+</script>
 
 </head>
 <body>
 
-SERVER: <span id="home_id"></span><br/>
-connections: <div id="connections"></div>
+<dl id="html5_support">
+  <dt id="html5_support_getusermedia_key">getusermedia</dt>
+  <dd id="html5_support_getusermedia_val"></dd>
+  <dt id="html5_support_audio_key">audio</dt>
+  <dd id="html5_support_audio_val"></dd>
+  <dt id="html5_support_video_key">video</dt>
+  <dd id="html5_support_video_val"></dd>
+  <dt id="html5_support_datachannel_key">datachannel</dt>
+  <dd id="html5_support_datachannel_val"></dd>
+  <dt id="html5_support_peerconnection_key">peerconnection</dt>
+  <dd id="html5_support_peerconnection_val"></dd>
+</dl>
 
-<audio autoplay>
-<source id="inputSource" type="audio/ogg" />
-</audio>
+<dl id="metadata">
+  <dt id="metadata_server_id_key">server</dt>
+  <dd id="metadata_server_id_val"></dd>
+</dl>
+
+<dl id="clients">
+  <!--
+    <dt id="client_axlk..._key">Minke</dt>
+    <dd id="client_axlk..._val">
+      ...
+    </dd>
+    -->
+</dl>
 
 <script type="text/javascript">
-var connections = {};
-var configDataConn = function(conn) {
-  if (conn.label === "metadata") {
-    if(connections.hasOwnProperty(conn.peer)) { return; }
-    connections[conn.peer] = {"metadata": conn};
-    $("#connections").append("<div id=\"" + conn.peer + "\"><div class=\"peer_id\"></div><div class=\"meta_open\">false</div><div class=\"chat_open\">false</div><div class=\"voice_open\">false</div><div class=\"last_data\"></div><div class=\"username\"></div></div>");
-    $("div.peer_id", "#" + conn.peer).text(conn.peer);
-    conn.on("open", function() {
-      $("div.meta_open", "#" + conn.peer).text(conn.open);
-      conn.on("data", function(data) {
-        if (data["type"] === 0) {  // set username
-          connections[conn.peer]["username"] = data["username"];
-          $("div.username", "#" + conn.peer).text(data["username"]);
-          for (var c in connections) {
-            // send everyone's username to new conn
-            conn.send({"type": 1, "username": connections[c]["username"], "id": c});  // NEWNAME_ACK
-            // send username to everyone
-            if (c != conn.peer) {
-              connections[c]["metadata"].send({"type": 1, "username": data["username"], "id": conn.peer});
-            }
-          }
-        }
-      });
-    });
-    conn.on("close", function() {
-      delete connections[conn.peer];
-      $("#" + conn.peer).remove();
-      for (var c in connections) {
-        connections[c]["metadata"].send({"type": 2, "id": conn.peer});  // DISCON
-      }
-    });
-  } else if (conn.label === "chat") {
-    if (connections[conn.peer].hasOwnProperty("chat")) { return; }
-    conn.on("open", function() {
-      $("div.chat_open", "#" + conn.peer).text(conn.open);
-      conn.on("data", function(data) {
-        $("div.last_data", "#" + conn.peer).text(data);
-        var chat_msg = {"type": 0, "username": connections[conn.peer]["username"], "message": data}; // race?
-        for (var c in connections) {
-          connections[c]["chat"].send(chat_msg);
-        }
-      });
-    });
-    conn.on("close", function() {
-      $("div.chat_open", "#" + conn.peer).text("false");
-    });
-    connections[conn.peer]["chat"] = conn;
+var client_entry_template = Handlebars.compile($("#client_entry_template").html());
+
+var support_getusermedia = $("dd#html5_support_getusermedia_val");
+var support_audio = $("dd#html5_support_audio_val");
+var support_video = $("dd#html5_support_video_val");
+var support_datachannel = $("dd#html5_support_datachannel_val");
+var support_peerconnection = $("dd#html5_support_peerconnection_val");
+
+var metadata_server_id_val = $("dd#metadata_server_id_val");
+
+var _clients = {};
+
+var _cxn = new Peer(config);
+
+var datachannelOnOpen = function(id) {
+  var _datachannelOnOpen = function() {
+    $("dd#client_" + id + "_metadata_status_val").text("connected");
+  }
+  return _datachannelOnOpen;
+}
+
+var datachannelOnClose = function(id) {
+  var _datachannelOnClose = function() {
+    $("dt#client_" + id + "_key").remove();
+    $("dd#client_" + id + "_val").remove();
+    delete _clients[id];
+
+    for (var client_id in _clients) {
+      _clients[client_id].send(MetadataDropMessage(id));
+    }
+  }
+  return _datachannelOnClose;
+}
+
+var _datachannelFuncHandlerConn = function(message) {
+  for (var client_id in _clients) {
+    if (client_id != message.id) {
+      _clients[message.id].send(MetadataConnMessage(client_id, _clients[client_id].metadata.username));  // update new connection
+    }
+    _clients[client_id].send(message);  // broadcast there exists a new connection
   }
 }
 
-var configVoiceConn = function(call, peer) {
-  if (connections.hasOwnProperty(call.peer) && !connections[call.peer].hasOwnProperty("inbound")) {
-    connections[call.peer]["inbound"] = call;
-    connections[call.peer]["outbound"] = {};
-
-    call.answer();
-    call.on("stream", function(stream) {
-      $("div.voice_open", "#" + call.peer).text(call.open);
-      connections[call.peer]["metadata"].send({"type": 3});
-
-      var x = $("<audio autoplay />");
-      $("body").append(x);
-      x[0].src = (URL || webkitURL || mozURL).createObjectURL(stream)
-      x[0].volume = 0;
-
-      for (var c in connections) {  // minke
-        if (c != call.peer) {
-          // send everyone's voice call to new conn
-          connections[call.peer]["outbound"][c] = peer.call(call.peer, stream, {"metadata": {"label": c}});  // update new voice
-
-          connections[c]["outbound"][call.peer] = peer.call(c, stream, {"metadata": {"label": call.peer}});  // update old voices
-        }
-      }
-    });
+var _datachannelFuncHandlerDrop = function(message) {
+  for (var client_id in _clients) {
+    if (client_id != message.id) {
+      client[message.id].send(MetadataDropMessage(client_id));
+    }
+    client[client_id].send(message);
   }
 }
 
-var main = function() {
-  var peer = new Peer({
-      key: "dnu57xap0ysyvi", 
-      config: {
-          "iceServers": [
-              { url: "stun:stun.l.google.com:19302" },
-              { url: "turn:numb.viagenie.ca", username: "webrtc@live.com", credential: "muazkh" }
-          ]
-      }
-  });
+var datachannel_func_handler = {}
+datachannel_func_handler[TYPE_METADATA_CONN] = _datachannelFuncHandlerConn;
+datachannel_func_handler[TYPE_METADATA_DROP] = _datachannelFuncHandlerDrop;
+
+var datachannelOnData = function(id) {
+  var _datachannelOnData = function(data) {
+    $("dd#client_" + id + "_metadata_last_message_val").text(JSON.stringify(data));
+    datachannel_func_handler[data.type](data);
+  }
+  return _datachannelOnData;
+}
+
+var cxnOnConnection = function(datachannel) {
+  _clients[datachannel.peer] = datachannel;
+
+  $("dl#clients").append(client_entry_template({
+      client_entry_id: datachannel.peer,
+      client_entry_username: datachannel.metadata.username
+  }));
+  $("dd#client_" + datachannel.peer + "_metadata_status_val").text("connecting");
+
+  datachannel.on("open", datachannelOnOpen(datachannel.peer));
+  datachannel.on("close", datachannelOnClose(datachannel.peer));
+
+  datachannel.on("data", datachannelOnData(datachannel.peer));
+}
+
+var cxnOnOpen = function(id) {
+  metadata_server_id_val.text(id);
+}
+
+var cxnOnClose = function() {
+  metadata_server_id_val.text("");
+}
+
+$(document).ready(function() {
+  support_getusermedia.text(Modernizr.getusermedia);
+  support_audio.text(Modernizr.audio);
+  support_video.text(Modernizr.video);
+  support_datachannel.text(Modernizr.datachannel);
+  support_peerconnection.text(Modernizr.peerconnection);
+
+  _cxn.on("open", cxnOnOpen);
+  _cxn.on("close", cxnOnClose);
+
+  _cxn.on("connection", cxnOnConnection);
+
   window.addEventListener("unload", function(e) {
-    peer.destroy();
+    _cxn.destroy();
   });
-  peer.on("open", function(id) {
-    $("span#home_id").text(id);
-  });
-  peer.on("connection", function(conn) {
-    configDataConn(conn);
-  });
-  peer.on("call", function(call) {
-    configVoiceConn(call, peer);
-  });
-  peer.on("error", function(e) {
-    console.log(e);
-  });
-};
-
-$(document).ready(function() { main(); });
+});
 </script>
 
 </body>

@@ -8,3 +8,36 @@ var config = {
     ]
   }
 };
+
+var METADATA = "metadata";
+
+var BaseMessage = function() {
+  return {
+  };
+}
+
+/**
+ * metadata messages
+ */
+
+var TYPE_METADATA_CONN = 0;
+var TYPE_METADATA_DROP = 1;
+
+var MetadataBaseMessage = function(type) {
+  var message = BaseMessage();
+  message.type = type;
+  return message;
+}
+
+var MetadataConnMessage = function(id, username) {
+  var message = MetadataBaseMessage(TYPE_METADATA_CONN);
+  message.id = id;
+  message.username = username;
+  return message;
+}
+
+var MetadataDropMessage = function(id) {
+  var message = MetadataBaseMessage(TYPE_METADATA_DROP);
+  message.id = id;
+  return message;
+}

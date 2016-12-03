@@ -3,180 +3,237 @@
 <head>
 
 <meta charset="utf-8">
-<title>SpeakerJS</title>
+<title>SpeakerJS Client</title>
 
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
-<script src="/static/js/modernizr.js"></script>
-<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+<link rel="stylesheet" type="text/css" href="https://gist.githubusercontent.com/nathansmith/288292/raw/f681bf457a90e61f535610b097117d19ca8142a5/html_reset.css" />
+
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="/static/js/modernizr.js"></script>
+<script type="text/javascript" src="/static/js/config.js"></script>
+<script type="text/javascript" src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.6/handlebars.min.js"></script>
+
+<script id="peer_entry_template" type="text/x-handlebars-template">
+  <dt id="peer_{{peer_entry_id}}_key">{{peer_entry_username}}</dt>
+  <dd id="peer_{{peer_entry_id}}_val"></dd>
+</script>
+
+<style>
+  label { display: none; }
+</style>
 
 </head>
 <body>
 
-CLIENT: <span id="home_id"></span><br/>
-PEERS: <div id="peers"></div>
-server: <span id="server_id"></span><br/>
-connected_to_server: <span id="server_conn_status">false</span><br/>
-connected_to_server_chat: <span id="server_chat_status">false</span><br/>
-connected_to_server_voice: <span id="server_voice_status">false</span><br/>
-username: <span id="username"></span><br/>
-<div id="connect_div"></div>
-<input id="input_chat" type="text" />
-<button id="button_chat">send</button>
-LOG
-<div id="log"></div>
+<dl id="html5_support">
+  <dt id="html5_support_getusermedia_key">getusermedia</dt>
+  <dd id="html5_support_getusermedia_val"></dd>
+  <dt id="html5_support_audio_key">audio</dt>
+  <dd id="html5_support_audio_val"></dd>
+  <dt id="html5_support_video_key">video</dt>
+  <dd id="html5_support_video_val"></dd>
+  <dt id="html5_support_datachannel_key">datachannel</dt>
+  <dd id="html5_support_datachannel_val"></dd>
+  <dt id="html5_support_peerconnection_key">peerconnection</dt>
+  <dd id="html5_support_peerconnection_val"></dd>
+</dl>
+
+<dl id="metadata">
+  <dt id="metadata_client_id_key">client</dt>
+  <dd id="metadata_client_id_val"></dd>
+  <dt id="metadata_client_username_key">username</dt>
+  <dd id="metadata_client_username_val"></dd>
+  <dt id="metadata_server_id_key">server</dt>
+  <dd id="metadata_server_id_val"></dt>
+  <dt id="metadata_server_metadata_key">metadata</dt>
+  <dd id="metadata_server_metadata_val"></dt>
+  <dt id="metadata_server_metadata_last_message_key">last message received</dt>
+  <dd id="metadata_server_metadata_last_message_val"></dt>
+</dl>
+
+<dl id="peers">
+  <!--
+    <dt id="peer_axlk..._key">Minke</dt>
+    <dd id="peer_axlk..._val">
+      ...
+    </dd>
+    -->
+</dl>
+
+<div id="form_server_connect_wrap">
+  <label for="form_server_connect_server_id">server</label>
+  <input id="form_server_connect_server_id" type="text" disabled />
+  <label for="form_server_connect_client_username">username</label>
+  <input id="form_server_connect_client_username" type="text" disabled />
+  <button id="form_server_connect_connect" disabled>connect</button>
+  <button id="form_server_connect_drop" disabled>drop</button>
+</div>
+
+<div id="form_chat_wrap">
+  <label for="form_chat_entry">chat</label>
+  <input id="form_chat_entry" type="text" disabled />
+  <button id="form_chat_submit" disabled>chat</button>
+</div>
+
+<div id="aggregated_log">
+  <!--
+    <div class="log_entry">...</div>
+    -->
+</div>
 
 <script type="text/javascript">
-var form = `
-<input id="server_id_input" type="text" />
-<input id="input_username" type="text" />
-<button id="connect">connect</button><br/>
-`
+var peer_entry_template = Handlebars.compile($("#peer_entry_template").html());
 
-var configFromServerConn = function(conn) {
+var support_getusermedia = $("dd#html5_support_getusermedia_val");
+var support_audio = $("dd#html5_support_audio_val");
+var support_video = $("dd#html5_support_video_val");
+var support_datachannel = $("dd#html5_support_datachannel_val");
+var support_peerconnection = $("dd#html5_support_peerconnection_val");
+
+var metadata_client_id_val = $("dd#metadata_client_id_val");
+var metadata_server_id_val = $("dd#metadata_server_id_val");
+var metadata_client_username_val = $("dd#metadata_client_username_val");
+var metadata_server_metadata_val = $("dd#metadata_server_metadata_val");
+var metadata_server_metadata_last_message_val = $("dd#metadata_server_metadata_last_message_val");
+
+var peers = $("dl#peers");
+
+var connect_server_id = $("input#form_server_connect_server_id");
+var connect_client_username = $("input#form_server_connect_client_username");
+var connect_connect = $("button#form_server_connect_connect");
+var connect_drop = $("button#form_server_connect_drop");
+
+var server_id = "";
+var client_username = "";
+var server_metadata = null;
+
+var _cxn = new Peer(config);
+
+var serverMetadataOnClose = function() {
+  metadata_server_id_val.text("");
+  metadata_client_username_val.text("");
+  metadata_server_metadata_val.text("");
+  metadata_server_metadata_last_message_val.text("");
+  peers.empty();
+
+  connect_server_id.prop("disabled", false);
+  connect_client_username.prop("disabled", false);
+  connect_connect.prop("disabled", false);
+  connect_drop.prop("disabled", true);
+
+  connect_connect.on("click", connectConnectOnClick);
+  connect_drop.on("click", null);
 }
 
-var configChatConn = function(conn) {
-  conn.on("open", function() {
-    $("#server_chat_status").text(conn.open);
-    $("#button_chat").click(function(e) {
-      var m = $("#input_chat").val();
-      conn.send(m);
-      $("#input_chat").val("");
-    });
-    conn.on("data", function(data) {
-      if (data["type"] === 0) { // normal message
-        var str_msg = data["username"] + ": " + data["message"];
-        $("#log").prepend($("<div>").text(str_msg));
-      }
-    });
-  });
-  conn.on("close", function() {
-    $("#server_chat_status").text("false");
-  });
+var serverMetadataOnOpen = function(id) {
+  metadata_server_id_val.text(server_id);
+  metadata_client_username_val.text(client_username);
+  metadata_server_metadata_val.text("true");
+
+  connect_server_id.val("");
+  connect_client_username.val("");
+
+  connect_server_id.prop("disabled", true);
+  connect_client_username.prop("disabled", true);
+  connect_connect.prop("disabled", true);
+  connect_drop.prop("disabled", false);
+
+  connect_connect.on("click", null);
+  connect_drop.on("click", connectDropOnClick);
+
+  server_metadata.send(MetadataConnMessage(_cxn.id, client_username));
 }
 
-var configMetadataConn = function(conn, username, peer) {
-  var connections = {};
-  conn.on("open", function() {
-    $("#server_conn_status").text(conn.open);
-    conn.send({"type": 0, "username": username});
-    $("#input_username").val("");
-    $("#username").text(username);
-
-    conn.on("data", function(data) {
-      if (data["type"] === 1) {
-        if ($("#" + data["id"]).length) {  // rename
-          $("#" + data["id"]).text(data["username"]);
-        } else {
-          connections[data["id"]] = {};
-          var new_peer = $("<div>");
-          new_peer.attr("id", data["id"]);
-
-          var peer_id = $("<span>");
-          peer_id.text(data["username"]);
-          peer_id.attr("class", "peer_id");
-
-          var peer_status = $("<span>");
-          peer_status.attr("class", "voice_stat");
-          peer_status.text("false");
-
-          new_peer.append(peer_id);
-          new_peer.append($("<br/>"));
-          new_peer.append(peer_status);
-
-          if (peer.id != data["id"]) {  // do not play self
-            var peer_audio = $("<div>");
-            peer_audio.html("<audio autoplay />");
-            new_peer.append(peer_audio);
-          }
-
-          $("#peers").append(new_peer);
-        }
-      } else if (data["type"] === 2) {
-        $("#" + data["id"]).remove();
-      } else if (data["type"] === 3) {
-        $("#server_voice_status").text("true");
-      }
-    });
-
-    peer.on("call", function(call) {
-      if ($("#" + call.metadata["label"]).length) {
-        call.answer();
-        call.on("stream", function(stream) {
-          if (!connections[call.metadata["label"]].hasOwnProperty("voice")) {
-            $(".voice_stat", "#" + call.metadata["label"]).text(call.open);
-            connections[call.metadata["label"]]["voice"] = call;
-
-            if (peer.id != call.metadata["label"]) {  // do not play self
-              var aud = $("audio", "#" + call.metadata["label"])[0];
-              aud.src = (URL || webkitURL || mozURL).createObjectURL(stream);
-            }
-          }
-        });
-      }
-    });
-
-    navigator.mediaDevices.getUserMedia({video: false, audio: true}).then(function(stream) {
-      peer.call(conn.peer, stream);
-    }).catch(function(e) {
-    });
-  });
-  conn.on("close", function() {
-    // reset
-    $("#username").text("");
-    $("#server_conn_status").text("false");
-    $("#server_id").text("");
-    $("#peers").html("");
-    $("#connect_div").html(form);
-  });
+var _metadataFuncHandlerConn = function(message) {
+  $("dl#peers").append(peer_entry_template({
+      peer_entry_id: message.id,
+      peer_entry_username: message.username
+  }));
 }
 
-var main = function() {
-  $("#connect_div").html(form);
+var _metadataFuncHandlerDrop = function(message) {
+  $("dt#peer_" + message.id + "_key").remove();
+  $("dd#peer_" + message.id + "_val").remove();
+}
 
-  var peer = new Peer({
-      key: "dnu57xap0ysyvi",
-      config: {
-          "iceServers": [
-              { url: "stun:stun.l.google.com:19302" },
-              { url: "turn:numb.viagenie.ca", username: "webrtc@live.com", credential: "muazkh" } 
-          ]
+var metadata_func_handler = {}
+metadata_func_handler[TYPE_METADATA_CONN] = _metadataFuncHandlerConn;
+metadata_func_handler[TYPE_METADATA_DROP] = _metadataFuncHandlerDrop;
+
+var serverMetadataOnData = function(data) {
+  metadata_server_metadata_last_message_val.text(JSON.stringify(data));
+  metadata_func_handler[data.type](data);
+}
+
+var connectDropOnClick = function() {
+  server_metadata.send(MetadataDropMessage(_cxn.id));
+  server_metadata.close();
+}
+
+var connectConnectOnClick = function() {
+  server_id = connect_server_id.val();
+  client_username = connect_client_username.val() ? connect_client_username.val() : server_id;
+
+  if (server_id == "") {
+    return;
+  }
+
+  server_metadata = _cxn.connect(server_id, {
+      reliable: true,
+      metadata: {
+          channel: METADATA,
+          username: client_username
       }
   });
+
+  server_metadata.on("open", serverMetadataOnOpen);
+  server_metadata.on("close", serverMetadataOnClose);
+  server_metadata.on("data", serverMetadataOnData);
+}
+
+var cxnOnConnection = function(datachannel) {  // TODO(minkezhang): this is for mixed chat, may not be necessary
+}
+
+var cxnOnOpen = function(id) {
+  metadata_client_id_val.text(id);
+
+  connect_server_id.prop("disabled", false);
+  connect_client_username.prop("disabled", false);
+  connect_connect.prop("disabled", false);
+  connect_drop.prop("disabled", true);
+
+  connect_connect.on("click", connectConnectOnClick);
+  connect_drop.on("click", null);
+}
+
+var cxnOnClose = function() {
+  metadata_client_id_val.text("");
+
+  connect_server_id.prop("disabled", true);
+  connect_client_username.prop("disabled", true);
+  connect_connect.prop("disabled", true);
+  connect_drop.prop("disabled", true);
+
+  connect_connect.on("click", null);
+  connect_drop.on("click", null);
+}
+
+$(document).ready(function() {
+  support_getusermedia.text(Modernizr.getusermedia);
+  support_audio.text(Modernizr.audio);
+  support_video.text(Modernizr.video);
+  support_datachannel.text(Modernizr.datachannel);
+  support_peerconnection.text(Modernizr.peerconnection);
+
+  _cxn.on("open", cxnOnOpen);
+  _cxn.on("close", cxnOnClose);
+
+  _cxn.on("connection", cxnOnConnection);
+
   window.addEventListener("unload", function(e) {
-    peer.destroy();
+    _cxn.destroy();
   });
-
-  peer.on("open", function(id) {
-    $("span#home_id").text(id);
-  });
-
-  peer.on("connection", function(conn) {
-    configFromServerConn(conn);
-  });
-
-  peer.on("error", function(e) {
-    console.log(e);
-  });
-
-  $("#connect").click(function(e) {
-    var server_id = $("#server_id_input").val();
-    $("#server_id_input").val("");
-    $("#server_id").text(server_id);
-    var username = $("#input_username").val();
-    var metadataConn = peer.connect(server_id, {"reliable": true, "label": "metadata"}); // TCP for metadata
-    if (metadataConn.peer) {
-      configMetadataConn(metadataConn, username, peer);
-    }
-    var chatConn = peer.connect(server_id, {"reliable": true, "label": "chat"});
-    if (chatConn.peer) {
-      configChatConn(chatConn);
-      $("#connect_div").html("");
-    }
-  });
-};
-
-$(document).ready(function() { main(); });
+});
 </script>
 
 </body>
