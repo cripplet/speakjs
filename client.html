@@ -15,7 +15,7 @@
 
 <script id="peer_entry_template" type="text/x-handlebars-template">
   <dt id="peer_{{peer_entry_id}}_key">{{peer_entry_username}}</dt>
-  <dd id="peer_{{peer_entry_id}}_val"></dd>
+  <dd id="peer_{{peer_entry_id}}_val"><audio autoplay /></dd>
 </script>
 
 <style>
@@ -144,11 +144,29 @@ var serverMetadataOnOpen = function(id) {
   server_metadata.send(MetadataConnMessage(_cxn.id, client_username));
 }
 
+_peers = {};
+
+var callOnStream = function(id) {
+  var _callOnStream = function(stream) {
+    $("audio", "#peer_" + id + "_val")[0].src = (URL || webkitURL || mozURL).createObjectURL(stream);
+  }
+  return _callOnStream;
+}
+
 var _metadataFuncHandlerConn = function(message) {
   $("dl#peers").append(peer_entry_template({
       peer_entry_id: message.id,
       peer_entry_username: message.username
   }));
+
+  if (message.id == _cxn.id) {
+    return;
+  }
+
+  navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+    _peers[message.id] = _cxn.call(message.id, stream);
+    _peers[message.id].on("stream", callOnStream(message.id));
+  });
 }
 
 var _metadataFuncHandlerDrop = function(message) {
@@ -174,7 +192,8 @@ var connectConnectOnClick = function() {
   server_id = connect_server_id.val();
   client_username = connect_client_username.val() ? connect_client_username.val() : server_id;
 
-  if (server_id == "") {
+  if (server_id == "" || (server_metadata != null && !server_metadata.open)) {
+    // TODO(minkezhang): bug, may have a leak on server_metadata.close
     return;
   }
 
@@ -192,6 +211,12 @@ var connectConnectOnClick = function() {
 }
 
 var cxnOnConnection = function(datachannel) {  // TODO(minkezhang): this is for mixed chat, may not be necessary
+}
+
+var cxnOnCall = function(call) {
+  navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+    call.answer(stream);
+  });
 }
 
 var cxnOnOpen = function(id) {
@@ -229,6 +254,7 @@ $(document).ready(function() {
   _cxn.on("close", cxnOnClose);
 
   _cxn.on("connection", cxnOnConnection);
+  _cxn.on("call", cxnOnCall);
 
   window.addEventListener("unload", function(e) {
     _cxn.destroy();
