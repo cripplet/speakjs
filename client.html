@@ -216,7 +216,7 @@ var cxnOnConnection = function(datachannel) {  // TODO(minkezhang): this is for 
 var cxnOnCall = function(call) {
   navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
     call.answer(stream);
-    callOnStream(call.peer)(stream);
+    call.on("stream", callOnStream(call.peer));
   });
 }
 
