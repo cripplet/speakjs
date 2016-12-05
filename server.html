@@ -97,9 +97,9 @@ var datachannelOnClose = function(id) {
 var _datachannelFuncHandlerConn = function(message) {
   for (var client_id in _clients) {
     if (client_id != message.id) {
-      _clients[message.id].send(MetadataConnMessage(client_id, _clients[client_id].metadata.username));  // update new connection
+      _clients[client_id].send(message);  // broadcast there exists a new connection
     }
-    _clients[client_id].send(message);  // broadcast there exists a new connection
+    _clients[message.id].send(MetadataPseudoConnMessage(client_id, _clients[client_id].metadata.username));  // update new connection
   }
 }
 

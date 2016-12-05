@@ -22,6 +22,7 @@ var BaseMessage = function() {
 
 var TYPE_METADATA_CONN = 0;
 var TYPE_METADATA_DROP = 1;
+var TYPE_METADATA_PSEUDOCONN = 2;  // update the peer list but do not actually call
 
 var MetadataBaseMessage = function(type) {
   var message = BaseMessage();
@@ -33,6 +34,12 @@ var MetadataConnMessage = function(id, username) {
   var message = MetadataBaseMessage(TYPE_METADATA_CONN);
   message.id = id;
   message.username = username;
+  return message;
+}
+
+var MetadataPseudoConnMessage = function(id, username) {
+  var message = MetadataConnMessage(id, username);
+  message.type = TYPE_METADATA_PSEUDOCONN;
   return message;
 }
 
