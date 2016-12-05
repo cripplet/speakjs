@@ -47,8 +47,15 @@ var peerOnOpen = function(id) {
   connect_forward_wrap_submit.prop("disabled", false);
 }
 
+var peerOnCall = function(call) {
+  navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+    call.answer(stream);
+  });
+}
+
 $(document).ready(function() {
   peer.on("open", peerOnOpen);
+  peer.on("call", peerOnCall);
 });
 
 </script>
