@@ -18,25 +18,18 @@
   <dd id="peer_{{peer_entry_id}}_val"><audio autoplay controls /></dd>
 </script>
 
+<script id="chat_entry_template" type="text/x-handlebars-template">
+  <div class="log_entry">
+    <span class="username">{{username}}</span> <span class="date">{{date}}</span>: <span class="message">{{message}}</span>
+  </div>
+</script>
+
 <style>
   label { display: none; }
 </style>
 
 </head>
 <body>
-
-<dl id="html5_support">
-  <dt id="html5_support_getusermedia_key">getusermedia</dt>
-  <dd id="html5_support_getusermedia_val"></dd>
-  <dt id="html5_support_audio_key">audio</dt>
-  <dd id="html5_support_audio_val"></dd>
-  <dt id="html5_support_video_key">video</dt>
-  <dd id="html5_support_video_val"></dd>
-  <dt id="html5_support_datachannel_key">datachannel</dt>
-  <dd id="html5_support_datachannel_val"></dd>
-  <dt id="html5_support_peerconnection_key">peerconnection</dt>
-  <dd id="html5_support_peerconnection_val"></dd>
-</dl>
 
 <dl id="metadata">
   <dt id="metadata_client_id_key">client</dt>
@@ -83,12 +76,7 @@
 
 <script type="text/javascript">
 var peer_entry_template = Handlebars.compile($("#peer_entry_template").html());
-
-var support_getusermedia = $("dd#html5_support_getusermedia_val");
-var support_audio = $("dd#html5_support_audio_val");
-var support_video = $("dd#html5_support_video_val");
-var support_datachannel = $("dd#html5_support_datachannel_val");
-var support_peerconnection = $("dd#html5_support_peerconnection_val");
+var chat_entry_template = Handlebars.compile($("#chat_entry_template").html());
 
 var metadata_client_id_val = $("dd#metadata_client_id_val");
 var metadata_server_id_val = $("dd#metadata_server_id_val");
@@ -103,6 +91,9 @@ var connect_client_username = $("input#form_server_connect_client_username");
 var connect_connect = $("button#form_server_connect_connect");
 var connect_drop = $("button#form_server_connect_drop");
 
+var form_chat_entry = $("#form_chat_entry");
+var form_chat_submit = $("#form_chat_submit");
+
 var server_id = "";
 var client_username = "";
 var server_metadata = null;
@@ -116,10 +107,16 @@ var serverMetadataOnClose = function() {
   metadata_server_metadata_last_message_val.text("");
   peers.empty();
 
+  form_chat_entry.val("");
+
   connect_server_id.prop("disabled", false);
   connect_client_username.prop("disabled", false);
   connect_connect.prop("disabled", false);
   connect_drop.prop("disabled", true);
+
+  form_chat_entry.prop("disabled", true);
+  form_chat_submit.prop("disabled", true);
+  form_chat_submit.on("click", null);
 
   connect_connect.on("click", connectConnectOnClick);
   connect_drop.on("click", null);
@@ -138,6 +135,10 @@ var serverMetadataOnOpen = function(id) {
   connect_connect.prop("disabled", true);
   connect_drop.prop("disabled", false);
 
+  form_chat_entry.prop("disabled", false);
+  form_chat_submit.prop("disabled", false);
+  form_chat_submit.on("click", chatOnClick);
+
   connect_connect.on("click", null);
   connect_drop.on("click", connectDropOnClick);
 
@@ -153,18 +154,38 @@ var callOnStream = function(id) {
   return _callOnStream;
 }
 
+var connectionOnData = function(id) {
+  var _connectionOnData = function(data) {
+    $("div#aggregated_log").prepend(chat_entry_template({
+        username: _peers[id].username,
+        message: data.message,
+        date: formatDate(new Date(data.date))
+    }));
+  }
+  return _connectionOnData;
+}
+
 var _metadataFuncHandlerPseudoConn = function(message) {
   $("dl#peers").append(peer_entry_template({
       peer_entry_id: message.id,
       peer_entry_username: message.username
   }));
+  _peers[message.id] = {
+      username: message.username,
+      media: null,
+      chat: null
+  };
 }
 
 var _metadataFuncHandlerConn = function(message) {
   _metadataFuncHandlerPseudoConn(message);
+
+  _peers[message.id].chat = _cxn.connect(message.id, {reliable: true})
+  _peers[message.id].chat.on("data", connectionOnData(message.id));
+
   navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
-    _peers[message.id] = _cxn.call(message.id, stream);
-    _peers[message.id].on("stream", callOnStream(message.id));
+    _peers[message.id].media = _cxn.call(message.id, stream),
+    _peers[message.id].media.on("stream", callOnStream(message.id));
   });
 }
 
@@ -186,6 +207,48 @@ var serverMetadataOnData = function(data) {
 var connectDropOnClick = function() {
   server_metadata.send(MetadataDropMessage(_cxn.id));
   server_metadata.close();
+}
+
+var formatDate = function(date) {
+  var time = [
+      date.getHours().toString(),
+      date.getMinutes().toString(),
+      date.getSeconds().toString()
+  ];
+
+  for (var i = 0; i < time.length; i++) {
+    if (time[i].length < 2) {
+      time[i] = "0" + time[i];
+    }
+  }
+
+  return time.join(":");
+}
+
+var chatOnClick = function() {
+  var _msg = form_chat_entry.val();
+  form_chat_entry.val("");
+  if (!/\S/.test(_msg)) {
+    return;
+  }
+  var date = new Date();
+  var msg = {
+      date: date.toString(),
+      message: _msg
+  };
+  form_chat_entry.val("");
+
+  for (client_id in _peers) {
+    if (_peers[client_id].chat) {
+      _peers[client_id].chat.send(msg);
+    } else {
+      $("div#aggregated_log").prepend(chat_entry_template({
+          username: _peers[client_id].username,
+          message: msg.message,
+          date: formatDate(new Date(msg.date))
+      }));
+    }
+  }
 }
 
 var connectConnectOnClick = function() {
@@ -210,13 +273,16 @@ var connectConnectOnClick = function() {
   server_metadata.on("data", serverMetadataOnData);
 }
 
-var cxnOnConnection = function(datachannel) {  // TODO(minkezhang): this is for mixed chat, may not be necessary
+var cxnOnConnection = function(datachannel) {
+  _peers[datachannel.peer].chat = datachannel;
+  _peers[datachannel.peer].chat.on("data", connectionOnData(datachannel.peer));
 }
 
 var cxnOnCall = function(call) {
   navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
-    call.answer(stream);
-    call.on("stream", callOnStream(call.peer));
+    _peers[call.peer].media = call;
+    _peers[call.peer].media.answer(stream);
+    _peers[call.peer].media.on("stream", callOnStream(call.peer));
   });
 }
 
@@ -227,6 +293,10 @@ var cxnOnOpen = function(id) {
   connect_client_username.prop("disabled", false);
   connect_connect.prop("disabled", false);
   connect_drop.prop("disabled", true);
+
+  form_chat_entry.prop("disabled", true);
+  form_chat_submit.prop("disabled", true);
+  form_chat_submit.on("click", null);
 
   connect_connect.on("click", connectConnectOnClick);
   connect_drop.on("click", null);
@@ -240,16 +310,16 @@ var cxnOnClose = function() {
   connect_connect.prop("disabled", true);
   connect_drop.prop("disabled", true);
 
+  form_chat_entry.prop("disabled", true);
+  form_chat_submit.prop("disabled", true);
+  form_chat_submit.on("click", null);
+
   connect_connect.on("click", null);
   connect_drop.on("click", null);
 }
 
 $(document).ready(function() {
-  support_getusermedia.text(Modernizr.getusermedia);
-  support_audio.text(Modernizr.audio);
-  support_video.text(Modernizr.video);
-  support_datachannel.text(Modernizr.datachannel);
-  support_peerconnection.text(Modernizr.peerconnection);
+  logSupportStatus();
 
   _cxn.on("open", cxnOnOpen);
   _cxn.on("close", cxnOnClose);

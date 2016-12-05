@@ -9,6 +9,17 @@ var config = {
   }
 };
 
+var logSupportStatus = function() {
+  var status = {
+      getusermedia: Modernizr.getusermedia,
+      audio: Modernizr.audio,
+      video: Modernizr.video,
+      datachannel: Modernizr.datachannel,
+      peerconnection: Modernizr.peerconnection
+  }
+  console.log(status);
+}
+
 var METADATA = "metadata";
 
 var BaseMessage = function() {
