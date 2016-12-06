@@ -63,8 +63,7 @@ var datachannelOnOpen = function(id) {
 
 var datachannelOnClose = function(id) {
   var _datachannelOnClose = function() {
-    $("dt#client_" + id + "_key").remove();
-    $("dd#client_" + id + "_val").remove();
+    $("dl#client_" + id + "_entry").remove();
     delete _clients[id];
 
     for (var client_id in _clients) {
