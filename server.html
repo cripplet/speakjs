@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <title>SpeakerJS Server</title>
 
-<link rel="stylesheet" type="text/css" href="https://gist.githubusercontent.com/nathansmith/288292/raw/f681bf457a90e61f535610b097117d19ca8142a5/html_reset.css" />
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
 
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script type="text/javascript" src="/static/js/modernizr.js"></script>
@@ -18,33 +18,32 @@
 </style>
 
 <script id="client_entry_template" type="text/x-handlebars-template">
-  <dt id="client_{{client_entry_id}}_key">{{client_entry_username}}</dt>
-  <dd id="client_{{client_entry_id}}_val">
-    <dl id="client_{{client_entry_id}}_metadata">
-      <dt id="client_{{client_entry_id}}_metadata_status_key">status</dt>
-      <dd id="client_{{client_entry_id}}_metadata_status_val"></dd>
-      <dt id="client_{{client_entry_id}}_metadata_last_message_key">last message received</dt>
-      <dd id="client_{{client_entry_id}}_metadata_last_message_val"></dd>
-    </dl>
-  </dd>
+  <dl id="client_{{client_entry_id}}_entry">
+    <dt id="client_{{client_entry_id}}_key">username</dt>
+    <dd id="client_{{client_entry_id}}_val">{{client_entry_username}}</dd>
+    <dt id="client_{{client_entry_id}}_metadata_status_key">status</dt>
+    <dd id="client_{{client_entry_id}}_metadata_status_val"></dd>
+    <dt id="client_{{client_entry_id}}_metadata_last_message_key">last message received</dt>
+    <dd id="client_{{client_entry_id}}_metadata_last_message_val"></dd>
+  </dl>
 </script>
 
 </head>
 <body>
 
-<dl id="metadata">
+<dl id="metadata" class="dl-horizontal">
   <dt id="metadata_server_id_key">server</dt>
   <dd id="metadata_server_id_val"></dd>
 </dl>
 
-<dl id="clients">
+<div id="clients" class="dl-horizontal">
   <!--
     <dt id="client_axlk..._key">Minke</dt>
     <dd id="client_axlk..._val">
       ...
     </dd>
     -->
-</dl>
+</div>
 
 <script type="text/javascript">
 var client_entry_template = Handlebars.compile($("#client_entry_template").html());
@@ -108,7 +107,7 @@ var datachannelOnData = function(id) {
 var cxnOnConnection = function(datachannel) {
   _clients[datachannel.peer] = datachannel;
 
-  $("dl#clients").append(client_entry_template({
+  $("div#clients").append(client_entry_template({
       client_entry_id: datachannel.peer,
       client_entry_username: datachannel.metadata.username
   }));
