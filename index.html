@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html prefix="og: http://ogp.me/ns# article: http://ogp.me/ns/article# " vocab="http://ogp.me/ns" lang="en">
+<head>
+
+<meta charset="utf-8">
+<title>SpeakerJS Client</title>
+
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /> 
+
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.6/handlebars.min.js"></script>
+<script type="text/javascript" src="/static/js/modernizr.js"></script>
+<script type="text/javascript" src="/static/js/peerjs/0.3.14/peer.js"></script>
+<script type="text/javascript" src="/static/js/config.js"></script>
+<script type="text/javascript" src="/static/js/lib.js"></script>
+<script type="text/javascript" src="/static/js/client.js"></script>
+
+</head>
+<body>
+
+<form id="form_server_connect">
+  <input id="form_server_connect_server_id" type="text" placeholder="server" />
+  <input id="form_server_connect_username" type="text" placeholder="username" />
+  <button type="submit">connect</button>
+  <button type="button">drop</button>
+</form>
+
+<form id="form_chat">
+  <input id="form_chat_content" type="text" placeholder="chat" />
+  <button type="submit">submit</button>
+</form>
+
+<script>
+$(document).ready(function() {
+  var server_value = getUrlParameter("server");
+  if (server_value) {
+    $("#form_server_connect_server_id").val(server_value);
+  }
+
+  var client = new ClientPeerJS();
+  console.log(client);
+  client.peerjs = new Peer(config);
+  console.log(client);
+
+  $("#form_server_connect").on("submit", function() {
+    return false;
+  });
+  $("#form_chat").on("submit", function() {
+    return false;
+  });
+});
+</script>
+
+</body>
+
+</html>
