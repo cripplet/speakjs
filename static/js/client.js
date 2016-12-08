@@ -2,153 +2,118 @@
  * Creates a new ClientConnection data object.
  * @class
  */
-var ClientConnection = function() {
-  this._username = null;
-  this._media = null;
-  this._text = null;
+class ClientConnection {
+  constructor() {
+    this._username = null;
+    this._media = null;
+    this._text = null;
+  }
 
-  Object.defineProperty(this, 'username', {
-      get: this.getUsername.bind(this),
-      set: this.setUsername.bind(this),
-  });
+  get username() { return () => this.getUsername(); }
+  set username(value) { return (value) => this.setUsername(value); }
 
-  Object.defineProperty(this, 'media', {
-      get: this.getMedia.bind(this),
-      set: this.setMedia.bind(this),
-  });
+  get media() { return () => this.getMedia(); }
+  set media(value) { return (value) => this.setMedia(value); }
 
-  Object.defineProperty(this, 'text', {
-      get: this.getText.bind(this),
-      set: this.setText.bind(this),
-  });
-}
+  get text() { return () => this.getText(); }
+  set text(value) { return (value) => this.setText(value); }
 
-/**
- * Getters
- */
+  /**
+   * getters
+   */
 
-ClientConnection.prototype.getUsername = function() {
-  return this._username;
-}
+  getUsername() { return this._username; }
+  getMedia() { return this._media; }
+  getText() { return this._text; }
 
-ClientConnection.prototype.getMedia = function() {
-  return this._media;
-}
+  /**
+   * setters
+   */
 
-ClientConnection.prototype.getText = function() {
-  return this._text;
-}
-
-/**
- * Setters
- * TODO(minkezhang): add documentation
- */
-
-ClientConnection.prototype.setUsername = function(value) {
   // TODO(minkezhang): install handler
-  this._username = username;
+  setUsername(value) { this._username = value; }
+
+  // TODO(minkezhang): install handler
+  setMedia(value) { this._media = value; }
+
+  // TODO(minkezhang): install handler
+  setText(value) {
+    this._text = value;
+    // TODO(minkezhang): install this._text.on("data", ...) here
+  }
 }
 
-ClientConnection.prototype.setMedia = function(value) {
-  // TODO(minkezhang): install handler
-  this._media = media;
-}
-
-ClientConnection.prototype.setText = function(value) {
-  // TODO(minkezhang): install handler
-  this._text = text;
-  // TODO(minkezhang): install this._text.on("data", ...) here
-}
 
 /**
  * Creates a new ClientPeerJS for SpeakJS.
  * @class
  */
-var ClientPeerJS = function() {
-  this._peerjs = null;
-  Object.defineProperty(this, "peerjs", {
-      get: this.getPeerJS.bind(this),
-      set: this.setPeerJS.bind(this),
-  });
+class ClientPeerJS {
+  constructor() {
+    this._peerjs = null;
+    this._metadata = null;  /* data connection to ServerPeerJS */ // TODO(minkezhang): install getters / setters for this
+    this._id = null;
 
-  this._metadata = null;  /* data connection to ServerPeerJS */ // TODO(minkezhang): install getters / setters for this
-
-  this.peers = new Proxy({}, {
-    set: this.setPeersEntry.bind(this),
-    deleteProperty: this.deletePeersEntry.bind(this),
-  });
-
-  this._id = null;
-  Object.defineProperty(this, "id", {
-      get: this.getId.bind(this),
-      set: this.setId.bind(this),
-  });
-
-  this.peerjs = new Peer(config);
-}
-
-/**
- * Getters
- */
-
-ClientPeerJS.prototype.getId = function() {
-  return this._id;
-}
-
-ClientPeerJS.prototype.getPeerJS = function() {
-  return this._peerjs;
-}
-
-/**
- * Setters
- */
-
-ClientPeerJS.prototype.setPeerJS = function(value) {
-  if (this._peerjs) {
-    this._peerjs.destroy();
-  }
-  this._peerjs = value;
-  if (this._peerjs) {
-    this._peerjs.on("open", this.onPeerJSOpen.bind(this));
-    this._peerjs.on("close", function() { /* on closing a peerjs connection */ });
-    this._peerjs.on("call", function(mediaConnection) { /* receive call */ });
-    this._peerjs.on("connection", function(dataConnection) { /* receive chat */ });
-    this._peerjs.on("disconnected", function() {
-      this._peerjs.reconnect();
+    this.peers = new Proxy({}, {
+      set: (target, key, value) => this.setPeersEntry(target, key, value),
+      deleteProperty: (target, key) => this.deletePeersEntry(target, key),
     });
+
+    this.peerjs = new Peer(config);
   }
-}
 
-ClientPeerJS.prototype.setId = function(value) {
+  get peerjs() { return () => this.getPeerJS(); }
+  set peerjs(value) { return (value) => this.setPeerJS(value); }
+
+  get id() { () => this.getId() };
+  set id(value) { return (value) => this.setId(value); }
+
+  /**
+   * getters
+   */
+
+  getId() { return this._id; }
+  getPeerJS() { return this._peerjs; }
+
+  /**
+   * setters
+   */
+
+  setPeerJS(value) {
+    if (this._peerjs) {
+      this._peerjs.destroy();
+    }
+    this._peerjs = value;
+    if (this._peerjs) {
+      this._peerjs.on("open", () => this.onPeerJSOpen());
+      // this._peerjs.on("close", () => { /* on closing a peerjs connection */ }());
+      // this._peerjs.on("call", (mediaConnection) => { /* recieve call */ }(mediaConnection));
+      // this._peerjs.on("connection", (dataConnection) => { /* receive chat */ }(dataConnection));
+      // this._peerjs.on("disconnected", () => { this._peerjs.reconnect(); }());
+    }
+  }
+
   // TODO(minkezhang): set element property in HTML
-  this._id = value;
-}
+  setId(value) { this._id = value; }
 
-ClientPeerJS.prototype.setPeersEntry = function(target, key, value) {
   // TODO(minkezhang): install handler here
-  target[key] = value;
-}
+  setPeersEntry(target, key, value) { target[key] = value; }
 
-/**
- * Delete operators
- */
+  /**
+   * delete operators
+   */
 
-ClientPeerJS.prototype.deletePeersEntry = function(target, key) {
   // TODO(minkezhang): install handler here
-  return delete target[key];
+  deletePeersEntry(target, key) { return delete target[key]; }
+
+  /**
+   * event handlers
+   */
+
+  /**
+   * Function invoked when connected to the PeerJS signalling server.
+   *
+   * @param {string} id The PeerJS unique ID.
+   */
+  onPeerJSOpen(id) { this.id = id; }
 }
-
-/**
- * Event handlers
- */
-
-/**
- * Function invoked when connected to the PeerJS signalling server.
- *
- * @param {string} id The PeerJS unique ID.
- */
-ClientPeerJS.prototype.onPeerJSOpen = function(id) {
-  this.id = id;
-}
-
-ClientPeerJS.prototype.onPeerJSClose = function() {}
