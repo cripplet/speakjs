@@ -62,11 +62,11 @@ class ClientPeerJS {
     this.peerjs = new Peer(config);
   }
 
-  get peerjs() { return () => this.getPeerJS(); }
-  set peerjs(value) { return (value) => this.setPeerJS(value); }
+  get peerjs() { return (() => this.getPeerJS())(); }
+  set peerjs(value) { return ((value) => this.setPeerJS(value))(value); }
 
-  get id() { () => this.getId() };
-  set id(value) { return (value) => this.setId(value); }
+  get id() { return (() => this.getId())(); };
+  set id(value) { return ((value) => this.setId(value))(value); }
 
   /**
    * getters
@@ -84,8 +84,9 @@ class ClientPeerJS {
       this._peerjs.destroy();
     }
     this._peerjs = value;
+    this.id = this.peerjs.id;
     if (this._peerjs) {
-      this._peerjs.on("open", () => this.onPeerJSOpen());
+      this._peerjs.on("open", (id) => this.onPeerJSOpen(id));
       // this._peerjs.on("close", () => { /* on closing a peerjs connection */ }());
       // this._peerjs.on("call", (mediaConnection) => { /* recieve call */ }(mediaConnection));
       // this._peerjs.on("connection", (dataConnection) => { /* receive chat */ }(dataConnection));
