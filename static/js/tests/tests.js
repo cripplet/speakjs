@@ -1,4 +1,4 @@
-let timeout = 500;
+let timeout = 1000;
 
 QUnit.test("CircularQueue single elements", (assert) => {
   let q = new CircularQueue(1);
@@ -162,6 +162,38 @@ QUnit.test("ClientPeerJS metadata data handling", (assert) => {
         let message = new MetadataPseudoJoinMessage(client_peerjs.id, client_peerjs.username);
         assert.deepEqual(client_peerjs.last_recv, message.json);
         assert.strictEqual(client_peerjs.id in client_peerjs.peers, true);
+        done();
+      }, timeout);
+    }, timeout);
+  }, timeout);
+});
+
+QUnit.test("ClientPeerJS peer drop", (assert) => {
+  let alice = new ClientPeerJS();
+  let bob = new ClientPeerJS();
+  let server = new ServerPeerJS();
+  let done = assert.async(3);
+
+  assert.strictEqual(alice.id in server.clients, false);
+  assert.strictEqual(bob.id in server.clients, false);
+  assert.strictEqual(alice.id in bob.peers, false);
+
+  setTimeout(() => {
+    alice.join(server.id, "alice");
+    bob.join(server.id, "bob");
+    done();
+    setTimeout(() => {
+      assert.strictEqual(alice.id in server.clients, true);
+      assert.strictEqual(bob.id in server.clients, true);
+      assert.strictEqual(alice.id in bob.peers, true);
+      assert.strictEqual(alice.metadata.open, true);
+      assert.strictEqual(bob.metadata.open, true);
+      alice.drop();
+      done();
+      setTimeout(() => {
+        assert.strictEqual(alice.id in server.clients, false);
+        assert.strictEqual(bob.id in server.clients, true);
+        assert.strictEqual(alice.id in bob.peers, false);
         done();
       }, timeout);
     }, timeout);

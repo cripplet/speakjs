@@ -2,7 +2,6 @@
  * Creates a new ClientConnection data object.
  * @class
  */
-// TODO(minkezhang): rename PeerConnection
 class PeerConnection {
   constructor() {
     this._id = null;
@@ -114,6 +113,7 @@ class ClientPeerJS {
     this.metadata_dispatch_table = {}
     this.metadata_dispatch_table[TYPE_METADATA_PSEUDO_JOIN] = (data) => this._dispatchMetadataPseudoJoin(data);
     this.metadata_dispatch_table[TYPE_METADATA_JOIN] = (data) => this._dispatchMetadataJoin(data);
+    this.metadata_dispatch_table[TYPE_METADATA_DROP] = (data) => this._dispatchMetadataDrop(data);
   }
 
   /**
@@ -156,12 +156,12 @@ class ClientPeerJS {
     });
     this.metadata.on("data", (data) => this.onMetadataData(data));
     this.metadata.on("open", () => this.onMetadataOpen());
+    this.metadata.on("close", () => this.onMetadataClose());
   }
 
   drop() {
-    this.username = null;
-    // this.metadata.close();  // TODO(minkezhang): implement this on server
-    this.metadata = null;
+    let data = new MetadataDropMessage(this.id);
+    this.metadata.send(data.json);
   }
 
   /**
@@ -229,7 +229,15 @@ class ClientPeerJS {
    */
 
   // TODO(minkezhang): install handler here
-  deletePeersEntry(target, key) { return delete target[key]; }
+  deletePeersEntry(target, key) {
+    if (target[key].media != null) {
+      target[key].media.close();
+    }
+    if (target[key].text != null) {
+      target[key].text.close();
+    }
+    return delete target[key];
+  }
 
   /**
    * event handlers
@@ -245,6 +253,10 @@ class ClientPeerJS {
   onMetadataOpen() {
     let message = new MetadataJoinMessage(this.id, this.username);
     this.metadata.send(message.json);
+  }
+
+  onMetadataClose() {
+    delete this.metadata;
   }
 
   onMetadataData(data) {
@@ -278,6 +290,10 @@ class ClientPeerJS {
     this.peers[data.id].text = this.peerjs.connect(data.id, {
         reliable: true,
     });
+  }
+
+  _dispatchMetadataDrop(data) {
+    delete this.peers[data.id];
   }
 
   broadcast(message) {

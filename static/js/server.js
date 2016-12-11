@@ -67,6 +67,7 @@ class ServerPeerJS {
 
     this.metadata_dispatch_table = {}
     this.metadata_dispatch_table[TYPE_METADATA_JOIN] = (data) => this._dispatchMetadataJoin(data);
+    this.metadata_dispatch_table[TYPE_METADATA_DROP] = (data) => this._dispatchMetadataDrop(data);
   }
 
   /**
@@ -120,8 +121,12 @@ class ServerPeerJS {
    * delete operators
    */
 
-  // TODO(minkezhang): install handler here
-  deleteClientsEntry(target, key) { return delete target[key]; }
+  deleteClientsEntry(target, key) {
+    if (target[key].metadata != null) {
+      target[key].metadata.close();
+    }
+    return delete target[key];
+  }
 
   /**
    * event handlers
@@ -177,6 +182,13 @@ class ServerPeerJS {
           this.clients[client_id].metadata.send(data);
         }
       }
+    }
+  }
+
+  _dispatchMetadataDrop(data) {
+    delete this.clients[data.id];
+    for (let client_id in this.clients) {  // TODO(minkezhang): change to for..of syntax
+      this.clients[client_id].metadata.send(data);
     }
   }
 }
