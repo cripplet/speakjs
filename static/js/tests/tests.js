@@ -1,22 +1,70 @@
-let timeout = 1000;
+let timeout = 500;
 
-QUnit.test("ClientPeerJS.construct", function(assert) {
+QUnit.test("CircularQueue single elements", (assert) => {
+  let q = new CircularQueue(1);
+  let kString = "0xdeadbeef";
+  let kString2 = "0xbeefdead";
+
+  assert.strictEqual(q.pop(), undefined);
+  assert.strictEqual(q.length, 0);
+
+  q.push(kString);
+
+  assert.strictEqual(q.length, 1);
+  assert.strictEqual(q.peek(), kString);
+  assert.strictEqual(q.length, 1);
+  assert.strictEqual(q.peek(), kString);
+
+  assert.strictEqual(q.pop(), kString);
+  assert.strictEqual(q.length, 0);
+  assert.strictEqual(q.pop(), undefined);
+  assert.strictEqual(q.length, 0);
+
+  q.push(kString);
+  assert.strictEqual(q.length, 1);
+  q.push(kString2);
+  assert.strictEqual(q.length, 1);
+
+  assert.strictEqual(q.pop(), kString2);
+  assert.strictEqual(q.pop(), undefined);
+});
+
+QUnit.test("CircularQueue multi-elements", (assert) => {
+  let q = new CircularQueue(2);
+  let kString = "0xdeadbeef";
+  let kString2 = "0xbeefdead";
+
+  q.push(kString);
+  q.push(kString2);
+
+  assert.strictEqual(q.pop(), kString2);
+  assert.strictEqual(q.pop(), kString);
+
+  q.push(kString);
+  q.push(kString2);
+
+  assert.deepEqual(q.array, [kString, kString2]);
+});
+
+QUnit.test("ClientPeerJS.construct", (assert) => {
   let client_peerjs = new ClientPeerJS();
+  assert.notOk(client_peerjs.device);
   let done = assert.async();
 
-  setTimeout(function() {
+  setTimeout(() => {
     assert.strictEqual(client_peerjs.peerjs.open, true);
     assert.ok(client_peerjs.peerjs.id);
     assert.strictEqual(client_peerjs.id, client_peerjs.peerjs.id);
+    assert.ok(client_peerjs.device);
     done();
   }, timeout);
 });
 
-QUnit.test("ClientPeerJS.peerjs.set", function(assert) {
+QUnit.test("ClientPeerJS.peerjs.set", (assert) => {
   let client_peerjs = new ClientPeerJS();
   let done = assert.async();
 
-  setTimeout(function() {
+  setTimeout(() => {
     let _peerjs = client_peerjs.peerjs;
     assert.strictEqual(_peerjs.destroyed, false);
     client_peerjs.peerjs = new Peer();
@@ -25,22 +73,22 @@ QUnit.test("ClientPeerJS.peerjs.set", function(assert) {
   }, timeout);
 });
 
-QUnit.test("ClientPeerJS.id.set", function(assert) {
+QUnit.test("ClientPeerJS.id.set", (assert) => {
   let client_peerjs = new ClientPeerJS();
   let done = assert.async();
 
-  setTimeout(function() {
+  setTimeout(() => {
     client_peerjs.id = "0xdeadbeef";
     assert.strictEqual(client_peerjs.id, "0xdeadbeef");
     done();
   }, timeout);
 });
 
-QUnit.test("ServerPeerJS.construct", function(assert) {
+QUnit.test("ServerPeerJS.construct", (assert) => {
   let server_peerjs = new ServerPeerJS();
   let done = assert.async();
 
-  setTimeout(function() {
+  setTimeout(() => {
     assert.strictEqual(server_peerjs.peerjs.open, true);
     assert.ok(server_peerjs.peerjs.id);
     assert.strictEqual(server_peerjs.id, server_peerjs.peerjs.id);
@@ -48,7 +96,7 @@ QUnit.test("ServerPeerJS.construct", function(assert) {
   }, timeout);
 });
 
-QUnit.test("ServerPeerJS.clients.set", function(assert) {
+QUnit.test("ServerPeerJS.clients.set", (assert) => {
   let server_peerjs = new ServerPeerJS();
 
   let key = "0xdeadbeef";
@@ -62,38 +110,143 @@ QUnit.test("ServerPeerJS.clients.set", function(assert) {
   assert.strictEqual(key in server_peerjs.clients, false);
 });
 
-QUnit.test("ClientPeerJS.join invalid", function(assert) {
+QUnit.test("ClientPeerJS.join invalid", (assert) => {
   let client_peerjs = new ClientPeerJS();
   let done = assert.async(2);
 
-  setTimeout(function() {
+  setTimeout(() => {
     let username = "my username";
     let server_id = "invalid server";
     client_peerjs.join(server_id, username);
-    setTimeout(function() {
+    done();
+    setTimeout(() => {
       assert.strictEqual(client_peerjs.metadata.open, false);
       done();
     }, timeout);
-    assert.ok(true);
-    done();
   }, timeout);
 });
 
-QUnit.test("ClientPeerJS.join valid", function(assert) {
+QUnit.test("ClientPeerJS.join valid", (assert) => {
   let client_peerjs = new ClientPeerJS();
   let server_peerjs = new ServerPeerJS();
   let done = assert.async(2);
 
-  setTimeout(function() {
+  setTimeout(() => {
     let username = "my username";
     client_peerjs.join(server_peerjs.id, username);
-    setTimeout(function() {
+    done();
+    setTimeout(() => {
       assert.strictEqual(client_peerjs.metadata.open, true);
       assert.strictEqual(client_peerjs.metadata.peer, server_peerjs.peerjs.id);
       assert.strictEqual(client_peerjs.id in server_peerjs.clients, true);
       assert.strictEqual(server_peerjs.clients[client_peerjs.id].metadata.peer, client_peerjs.id);
       done();
     }, timeout);
+  }, timeout);
+});
+
+QUnit.test("ClientPeerJS metadata data handling", (assert) => {
+  let client_peerjs = new ClientPeerJS();
+  let server_peerjs = new ServerPeerJS();
+  let done = assert.async(3);
+
+  setTimeout(() => {
+    let username = "my username";
+    let message = new MetadataJoinMessage(client_peerjs.id, username);
+    client_peerjs.join(server_peerjs.id, username);
     done();
+    setTimeout(() => {
+      assert.deepEqual(server_peerjs.clients[client_peerjs.id].last_recv, message.json);
+      done();
+      setTimeout(function () {
+        let message = new MetadataPseudoJoinMessage(client_peerjs.id, client_peerjs.username);
+        assert.deepEqual(client_peerjs.last_recv, message.json);
+        assert.strictEqual(client_peerjs.id in client_peerjs.peers, true);
+        done();
+      }, timeout);
+    }, timeout);
+  }, timeout);
+});
+
+QUnit.test("ClientPeerJS peer connect", (assert) => {
+  let alice = new ClientPeerJS();
+  let bob = new ClientPeerJS();
+  let server = new ServerPeerJS();
+  let done = assert.async(2);
+
+  setTimeout(() => {
+    alice.join(server.id, "alice");
+    bob.join(server.id, "bob");
+    done();
+    setTimeout(() => {
+      assert.strictEqual(alice.username, "alice");
+      assert.strictEqual(bob.username, "bob");
+
+      assert.strictEqual(alice.id in server.clients, true);
+      assert.strictEqual(bob.id in server.clients, true);
+
+      assert.strictEqual(alice.id in bob.peers, true);
+      assert.strictEqual(bob.id in bob.peers, true);
+
+      assert.strictEqual(alice.id in alice.peers, true);
+      assert.strictEqual(bob.id in alice.peers, true);
+
+      assert.strictEqual(alice.peers[alice.id].media, null);
+      assert.strictEqual(alice.peers[alice.id].stream, null);
+      assert.strictEqual(alice.peers[alice.id].id, alice.id);
+      assert.strictEqual(alice.peers[alice.id].username, alice.username);
+
+      assert.ok(alice.peers[bob.id].media);
+      assert.ok(alice.peers[bob.id].stream);
+      assert.strictEqual(alice.peers[bob.id].id, bob.id);
+      assert.strictEqual(alice.peers[bob.id].username, bob.username);
+
+      assert.strictEqual(bob.peers[bob.id].media, null);
+      assert.strictEqual(bob.peers[bob.id].stream, null);
+      assert.strictEqual(bob.peers[bob.id].id, bob.id);
+      assert.strictEqual(bob.peers[bob.id].username, bob.username);
+
+      assert.ok(bob.peers[alice.id].media);
+      assert.ok(bob.peers[alice.id].stream);
+      assert.strictEqual(bob.peers[alice.id].id, alice.id)
+      assert.strictEqual(bob.peers[alice.id].username, alice.username);
+
+      done();
+    }, timeout);
+  }, timeout);
+});
+
+QUnit.test("ClientPeerJS chat", (assert) => {
+  let alice = new ClientPeerJS();
+  let bob = new ClientPeerJS();
+  let server = new ServerPeerJS();
+  let done = assert.async(3);
+
+  setTimeout(() => {
+    alice.join(server.id, "alice");
+    bob.join(server.id, "bob");
+    done();
+    setTimeout(() => {
+      assert.strictEqual(alice.id in server.clients, true);
+      assert.strictEqual(bob.id in server.clients, true);
+
+      assert.strictEqual(bob.id in alice.peers, true);
+      assert.strictEqual(alice.id in bob.peers, true);
+
+      alice.broadcast("hi bob");
+      done();
+
+      setTimeout(() => {
+        assert.strictEqual(alice.peers[alice.id].cache.length, 1);
+        assert.strictEqual(alice.peers[bob.id].cache.length, 0);
+        assert.strictEqual(bob.peers[alice.id].cache.length, 1);
+        assert.strictEqual(bob.peers[bob.id].cache.length, 0);
+
+        alice_cache_msg = alice.peers[alice.id].cache.pop();
+        bob_cache_msg = bob.peers[alice.id].cache.pop();
+        assert.deepEqual(alice_cache_msg, bob_cache_msg);
+        done();
+      }, timeout);
+    }, timeout);
   }, timeout);
 });

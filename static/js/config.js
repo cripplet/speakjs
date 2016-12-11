@@ -1,5 +1,5 @@
 var key = "dnu57xap0ysyvi";
-var config = {
+let config = {
   key: key,
   config: {
     "iceServers": [
@@ -9,8 +9,8 @@ var config = {
   }
 };
 
-var logSupportStatus = function() {
-  var status = {
+let logSupportStatus = function() {
+  let status = {
       getusermedia: Modernizr.getusermedia,
       audio: Modernizr.audio,
       video: Modernizr.video,
@@ -20,42 +20,111 @@ var logSupportStatus = function() {
   console.log(status);
 }
 
-var METADATA = "metadata";
+class CircularQueue {
+  constructor(size) {
+    if (size === undefined) {
+      throw Error("CicularBuffer.size must be specified");
+    }
+    if (size <= 0) {
+      throw Error("CircularBuffer.size must be a positive integer");
+    }
+    this.size = size;
+    this.write_head = 0;
+    this.buffer = [];
+    this._length = 0;
+  }
 
-var BaseMessage = function() {
-  return {
+  peek() {
+    return this.buffer[this.write_head - 1 % this.size];
+  }
+
+  pop() {
+    let r = this.peek();
+    this.buffer[this.write_head - 1 % this.size] = undefined;
+    this.write_head--;
+    this._length = Math.max(this._length - 1, 0);
+    return r;
+  }
+
+  push(value) {
+    if (this.buffer.length < this.size) {
+      this.buffer.push(value);
+    } else {
+      this.buffer[this.write_head % this.size] = value;
+    }
+    this._length = Math.min(this._length + 1, this.size);
+    this.write_head++;
+  }
+
+  *[Symbol.iterator]() {
+    for(let offset = 0; offset < this.buffer.length; offset++) {
+      yield this.buffer[(this.write_head + offset) % this.buffer.length];
+    }
+  }
+
+  get length() { return this._length; }
+  get array() {
+    let r = [];
+    for (let el of this) {
+      r.push(el);
+    }
+    return r;
+  }
+}
+
+class BaseMessage {
+  constructor(type, id) {
+    this.type = type;
+    this.id = id;
   };
+  get json() { return this.getJson(); }
+
+  /**
+   * Cannot send classes over PeerJS data connection.
+   */
+  getJson() {
+    return JSON.parse(JSON.stringify(this));
+  }
+}
+
+/**
+ * chat messages
+ */
+
+let TYPE_CHAT = 3;
+
+class ChatMessage extends BaseMessage {
+  constructor(id, username, message) {
+    super(TYPE_CHAT, id);
+    this.username = username;
+    this.id = id;
+  }
 }
 
 /**
  * metadata messages
  */
 
-var TYPE_METADATA_CONN = 0;
-var TYPE_METADATA_DROP = 1;
-var TYPE_METADATA_PSEUDOCONN = 2;  // update the peer list but do not actually call
+let TYPE_METADATA_JOIN = 0;
+let TYPE_METADATA_DROP = 1;
+let TYPE_METADATA_PSEUDO_JOIN = 2;  // update the peer list but do not actually call
 
-var MetadataBaseMessage = function(type) {
-  var message = BaseMessage();
-  message.type = type;
-  return message;
+class MetadataJoinMessage extends BaseMessage {
+  constructor(id, username) {
+    super(TYPE_METADATA_JOIN, id);
+    this.username = username;
+  }
 }
 
-var MetadataConnMessage = function(id, username) {
-  var message = MetadataBaseMessage(TYPE_METADATA_CONN);
-  message.id = id;
-  message.username = username;
-  return message;
+class MetadataPseudoJoinMessage extends BaseMessage {
+  constructor(id, username) {
+    super(TYPE_METADATA_PSEUDO_JOIN, id);
+    this.username = username;
+  }
 }
 
-var MetadataPseudoConnMessage = function(id, username) {
-  var message = MetadataConnMessage(id, username);
-  message.type = TYPE_METADATA_PSEUDOCONN;
-  return message;
-}
-
-var MetadataDropMessage = function(id) {
-  var message = MetadataBaseMessage(TYPE_METADATA_DROP);
-  message.id = id;
-  return message;
+class MetadataDropMessage extends BaseMessage {
+  constructor(id) {
+    super(TYPE_METADATA_DROP, id);
+  }
 }
