@@ -129,6 +129,7 @@ QUnit.test("ClientPeerJS.join invalid", (assert) => {
     done();
     setTimeout(() => {
       assert.strictEqual(client_peerjs.metadata.open, false);
+      assert.strictEqual(client_peerjs.server_id, null);
       done();
     }, timeout);
   }, timeout);
@@ -145,10 +146,47 @@ QUnit.test("ClientPeerJS.join valid", (assert) => {
     done();
     setTimeout(() => {
       assert.strictEqual(client_peerjs.metadata.open, true);
+      assert.strictEqual(client_peerjs.server_id, client_peerjs.metadata.peer);
       assert.strictEqual(client_peerjs.metadata.peer, server_peerjs.peerjs.id);
       assert.strictEqual(client_peerjs.id in server_peerjs.clients, true);
       assert.strictEqual(server_peerjs.clients[client_peerjs.id].metadata.peer, client_peerjs.id);
       done();
+    }, timeout);
+  }, timeout);
+});
+
+QUnit.test("ClientPeerJS.drop empty", (assert) => {
+  let client = new ClientPeerJS();
+  client.drop();
+  assert.expect(0);
+});
+
+QUnit.test("ClientPeerJS.join subsequent", (assert) => {
+  let client = new ClientPeerJS();
+  let server = new ServerPeerJS();
+  let done = assert.async(5);
+
+  setTimeout(() => {
+    client.join(server.id, "alice");
+    done();
+    setTimeout(() => {
+      assert.strictEqual(client.server_id, server.id);
+      client.drop();
+      done();
+      setTimeout(() => {
+        assert.strictEqual(client.id in server.clients, false);
+        assert.strictEqual(client.metadata, null);
+        assert.strictEqual(client.server_id, null);
+        done();
+        setTimeout(() => {
+          client.join(server.id, "alice");
+          done();
+          setTimeout(() => {
+            assert.strictEqual(client.server_id, server.id);
+            done();
+          }, timeout);
+        }, timeout);
+      }, timeout);
     }, timeout);
   }, timeout);
 });

@@ -19,21 +19,34 @@
 </head>
 <body>
 
-<div id="client_info"></div>
-<div id="peer_list"></div>
-<div id="chat_log"></div>
+<div id="client_info">
+  <div id="client_client_id_key">Client ID</div>
+  <div id="client_client_id_val"></div>
+  <div id="client_server_id_key">Server ID</div>
+  <div id="client_server_id_val"></div>
+</div>
 
 <form id="form_server_connect">
   <input id="form_server_connect_server_id" type="text" placeholder="server" />
   <input id="form_server_connect_username" type="text" placeholder="username" />
-  <button type="submit">connect</button>
-  <button type="button" id="form_server_connect_drop">drop</button>
+  <button type="submit">Connect</button>
+  <button type="button" id="form_server_connect_drop">Drop</button>
 </form>
 
 <form id="form_chat">
   <input id="form_chat_content" type="text" placeholder="chat" />
-  <button type="submit">submit</button>
+  <button type="submit">Submit</button>
 </form>
+
+<div id="client_peer_list">
+  <div id="client_peer_list_key">Peers</div>
+  <div id="client_peer_list_val"></div>
+</div>
+
+<div id="client_log">
+  <div id="client_log_key">Chat Log</div>
+  <div id="client_log_var"></div>
+</div>
 
 <script>
 $(document).ready(function() {
@@ -43,9 +56,6 @@ $(document).ready(function() {
   }
 
   let client = new ClientPeerJS(true);
-  T.render("chat_log", (t) => {
-    $("body").append(t());
-  });
 
   $("#form_server_connect").on("submit", function() {
     client.join($("#form_server_connect_server_id").val(), $("#form_server_connect_username").val());

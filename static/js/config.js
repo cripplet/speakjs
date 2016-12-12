@@ -19,8 +19,20 @@ let layout = {
   SERVER_CHAT: "#server_cache_val",
 
   SERVER_CLIENTS: "#server_client_list_val",
-  SERVER_CLIENTS_ENTRY: "#server_client_entry_%(client_id)s",
+  SERVER_CLIENTS_ENTRY_LAYOUT: "server_client_entry",
+  SERVER_CLIENTS_ENTRY_FMT: "#server_client_entry_%(client_id)s",
   SERVER_CLIENTS_ENTRY_LAST_RECV_FMT: "#server_client_entry_last_recv_%(client_id)s_val",
+
+  CLIENT_CLIENT_ID: "#client_client_id_val",
+  CLIENT_SERVER_ID: "#client_server_id_val",
+
+  CLIENT_CHAT: "#client_log_var",
+  CLIENT_CHAT_ENTRY_LAYOUT: "client_chat_entry",
+
+  CLIENT_PEERS: "#client_peer_list_val",
+  CLIENT_PEERS_ENTRY_LAYOUT: "client_peer_entry",
+  CLIENT_PEERS_ENTRY_FMT: "#client_peer_entry_%(peer_id)s",
+  CLIENT_PEERS_ENTRY_AUDIO_FMT: "#client_peer_entry_audio_%(peer_id)s_audio",
 }
 
 let logSupportStatus = () => {

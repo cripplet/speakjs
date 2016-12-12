@@ -40,7 +40,6 @@ class ClientConnection {
    * setters
    */
 
-  // TODO(minkezhang): install handler
   setUsername(value) {
     if (this._username != null) {
       throw new Error("Cannot set property more than once.");
@@ -48,7 +47,6 @@ class ClientConnection {
     this._username = value;
   }
 
-  // TODO(minkezhang): install handler
   setMetadata(value) { this._metadata = value; }
 
   setLastRecv(value) {
@@ -145,7 +143,6 @@ class ServerPeerJS {
     }
   }
 
-  // TODO(minkezhang): install handler here
   setClientsEntry(target, key, value) {
     if ((key in target) && target[key] != value) {
       delete target[key];
@@ -160,7 +157,7 @@ class ServerPeerJS {
 
   deleteClientsEntry(target, key) {
     if (this.do_render) {
-      $(sprintf(layout.SERVER_CLIENTS_ENTRY, {client_id: key})).remove();
+      $(sprintf(layout.SERVER_CLIENTS_ENTRY_FMT, {client_id: key})).remove();
     }
     if (target[key].metadata != null) {
       target[key].metadata.close();
@@ -196,7 +193,7 @@ class ServerPeerJS {
         "close", this.onMetadataClose(data_connection.peer));
 
     if (this.do_render) {
-      T.render("server_client_entry", (t) => {
+      T.render(layout.SERVER_CLIENTS_ENTRY_LAYOUT, (t) => {
         $(layout.SERVER_CLIENTS).append(t({
             client_id: data_connection.peer,
             username: data_connection.metadata.username,
@@ -231,6 +228,10 @@ class ServerPeerJS {
   onMetadataClose(client_id) {
     return () => {
       delete this.clients[client_id];
+      let message = new MetadataDropMessage(client_id);
+      for (let c in this.clients) {
+        this.clients[c].metadata.send(message.json);
+      }
     }
   }
 

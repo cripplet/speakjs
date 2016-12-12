@@ -28,6 +28,29 @@ let getUrlParameter = (sParam) => {
     }
 };
 
+/**
+ * Format a date string.
+ *
+ * @params {string} date_string Stringified Date object.
+ * @returns {string} The formatted date string.
+ */
+var formatDate = function(date_string) {
+  let date = new Date(date_string);
+  var time = [
+      date.getHours().toString(),
+      date.getMinutes().toString(),
+      date.getSeconds().toString()
+  ];
+
+  for (var i = 0; i < time.length; i++) {
+    if (time[i].length < 2) {
+      time[i] = "0" + time[i];
+    }
+  }
+
+  return time.join(":");
+}
+
 /*
  * This decorates Handlebars.js with the ability to load
  * templates from an external source, with light caching.
