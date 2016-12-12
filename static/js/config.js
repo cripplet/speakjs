@@ -1,4 +1,4 @@
-var key = "dnu57xap0ysyvi";
+let key = "dnu57xap0ysyvi";
 let config = {
   key: key,
   config: {
@@ -9,7 +9,7 @@ let config = {
   }
 };
 
-let logSupportStatus = function() {
+let logSupportStatus = () => {
   let status = {
       getusermedia: Modernizr.getusermedia,
       audio: Modernizr.audio,
