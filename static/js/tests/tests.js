@@ -46,6 +46,12 @@ QUnit.test("CircularQueue multi-elements", (assert) => {
   assert.deepEqual(q.array, [kString, kString2]);
 });
 
+QUnit.test("CircularQueue callback", (assert) => {
+  let q = new CircularQueue(10, (data) => { return data.length });
+  let kString = "0xdeadbeef";
+  assert.strictEqual(q.push(kString), 10);
+});
+
 QUnit.test("ClientPeerJS.construct", (assert) => {
   let client_peerjs = new ClientPeerJS();
   assert.notOk(client_peerjs.device);
@@ -265,19 +271,53 @@ QUnit.test("ClientPeerJS chat", (assert) => {
       assert.strictEqual(bob.id in alice.peers, true);
       assert.strictEqual(alice.id in bob.peers, true);
 
-      alice.broadcast("hi bob");
+      let kMessage = "hi bob";
+      alice.broadcast(kMessage);
       done();
 
       setTimeout(() => {
-        assert.strictEqual(alice.peers[alice.id].cache.length, 1);
-        assert.strictEqual(alice.peers[bob.id].cache.length, 0);
-        assert.strictEqual(bob.peers[alice.id].cache.length, 1);
-        assert.strictEqual(bob.peers[bob.id].cache.length, 0);
+        assert.strictEqual(alice.cache.length, 1);
+        assert.strictEqual(bob.cache.length, 1);
+        assert.strictEqual(server.cache.length, 1);
 
         alice_cache_msg = alice.peers[alice.id].cache.pop();
         bob_cache_msg = bob.peers[alice.id].cache.pop();
+        server_cache_msg = server.cache.pop();
+        assert.strictEqual(alice_cache_msg.message, kMessage);
+
+
         assert.deepEqual(alice_cache_msg, bob_cache_msg);
+        assert.deepEqual(server_cache_msg, alice_cache_msg);
         done();
+      }, timeout);
+    }, timeout);
+  }, timeout);
+});
+
+QUnit.test("ClientPeerJS chat cache", (assert) => {
+  let alice = new ClientPeerJS();
+  let bob = new ClientPeerJS();
+  let eve = new ClientPeerJS();
+  let server = new ServerPeerJS();
+  let done = assert.async(4);
+
+  setTimeout(() => {
+    alice.join(server.id, "alice");
+    bob.join(server.id, "bob");
+    done();
+    setTimeout(() => {
+      alice.broadcast("hi bob");
+      done();
+      setTimeout(() => {
+        eve.join(server.id, "eve");
+        done();
+        setTimeout(() => {
+          assert.strictEqual(eve.cache.length, 1);
+          let eve_cache_msg = eve.cache.pop();
+          assert.strictEqual(eve_cache_msg.message, "hi bob");
+          assert.strictEqual(eve_cache_msg.username, "alice");
+          done();
+        }, timeout);
       }, timeout);
     }, timeout);
   }, timeout);

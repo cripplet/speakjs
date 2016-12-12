@@ -3,13 +3,13 @@
  * @class
  */
 class PeerConnection {
-  constructor() {
+  constructor(cache) {
     this._id = null;
     this._username = null;
     this._media = null;
     this._text = null;
     this._stream = null;
-    this._cache = new CircularQueue(10);
+    this._cache = cache;
   }
 
   get id() { return this.getId(); }
@@ -97,6 +97,7 @@ class ClientPeerJS {
     this._metadata = null;
     this._peerjs = null;
     this._username = null;
+    this._cache = new CircularQueue(10);
 
     navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
       this.device = stream;
@@ -114,6 +115,7 @@ class ClientPeerJS {
     this.metadata_dispatch_table[TYPE_METADATA_PSEUDO_JOIN] = (data) => this._dispatchMetadataPseudoJoin(data);
     this.metadata_dispatch_table[TYPE_METADATA_JOIN] = (data) => this._dispatchMetadataJoin(data);
     this.metadata_dispatch_table[TYPE_METADATA_DROP] = (data) => this._dispatchMetadataDrop(data);
+    this.metadata_dispatch_table[TYPE_CHAT] = (data) => this._dispatchMetadataChat(data);
   }
 
   /**
@@ -137,6 +139,8 @@ class ClientPeerJS {
 
   get device() { return this.getDevice(); }
   set device(value) { return this.setDevice(value); }
+
+  get cache() { return this.getCache(); }
 
   /**
    * methods
@@ -174,10 +178,11 @@ class ClientPeerJS {
   getUsername() { return this._username; }
   getMetadata() { return this._metadata; }
   getLastRecv() { return this._last_recv; }
+  getCache() { return this._cache; }
 
   getPeersEntry(target, key) {
     if (!(key in target)) {
-      target[key] = new PeerConnection();
+      target[key] = new PeerConnection(this.cache);
     }
     return target[key];
   }
@@ -199,10 +204,10 @@ class ClientPeerJS {
     this.id = this.peerjs.id;
     if (this._peerjs) {
       this._peerjs.on("open", (id) => this.onPeerJSOpen(id));
-      // this._peerjs.on("close", () => { /* on closing a peerjs connection */ }());
+      this._peerjs.on("close", () => this.onPeerJSClose());
       this._peerjs.on("call", (media_connection) => this.onPeerJSCall(media_connection));
       this._peerjs.on("connection", (data_connection) => this.onPeerJSConnection(data_connection));
-      // this._peerjs.on("disconnected", () => { this._peerjs.reconnect(); }());
+      this._peerjs.on("disconnected", () => this.onPeerJSDisconnected));
     }
   }
 
@@ -250,6 +255,12 @@ class ClientPeerJS {
    */
   onPeerJSOpen(id) { this.id = id; }
 
+  onPeerJSClose() { this.id = null; }
+
+  onPeerJSDisconnect() {
+    this._peerjs.reconnect();
+  }
+
   onMetadataOpen() {
     let message = new MetadataJoinMessage(this.id, this.username);
     this.metadata.send(message.json);
@@ -296,6 +307,10 @@ class ClientPeerJS {
     delete this.peers[data.id];
   }
 
+  _dispatchMetadataChat(data) {
+    this.cache.push(data);
+  }
+
   broadcast(message) {
     let data = new ChatMessage(this.id, this.username, message);
     this.peers[this.id].cache.push(data.json);
@@ -304,5 +319,6 @@ class ClientPeerJS {
         this.peers[peer_id].text.send(data.json);
       }
     }
+    this.metadata.send(data.json);
   }
 }

@@ -21,7 +21,7 @@ let logSupportStatus = function() {
 }
 
 class CircularQueue {
-  constructor(size) {
+  constructor(size, callback) {
     if (size === undefined) {
       throw Error("CicularBuffer.size must be specified");
     }
@@ -32,6 +32,7 @@ class CircularQueue {
     this.write_head = 0;
     this.buffer = [];
     this._length = 0;
+    this.callback = callback;
   }
 
   peek() {
@@ -54,6 +55,9 @@ class CircularQueue {
     }
     this._length = Math.min(this._length + 1, this.size);
     this.write_head++;
+    if (this.callback != null) {
+      return this.callback(value);
+    }
   }
 
   *[Symbol.iterator]() {
@@ -97,7 +101,7 @@ class ChatMessage extends BaseMessage {
   constructor(id, username, message) {
     super(TYPE_CHAT, id);
     this.username = username;
-    this.id = id;
+    this.message = message;
   }
 }
 

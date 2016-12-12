@@ -57,6 +57,7 @@ class ServerPeerJS {
   constructor() {
     this._peerjs = null;
     this._id = null;
+    this._cache = new CircularQueue(10);
 
     this.clients = new Proxy(new Map(), {
       set: (target, key, value) => this.setClientsEntry(target, key, value),
@@ -68,6 +69,7 @@ class ServerPeerJS {
     this.metadata_dispatch_table = {}
     this.metadata_dispatch_table[TYPE_METADATA_JOIN] = (data) => this._dispatchMetadataJoin(data);
     this.metadata_dispatch_table[TYPE_METADATA_DROP] = (data) => this._dispatchMetadataDrop(data);
+    this.metadata_dispatch_table[TYPE_CHAT] = (data) => this._dispatchMetadataChat(data);
   }
 
   /**
@@ -77,8 +79,10 @@ class ServerPeerJS {
   get peerjs() { return this.getPeerJS(); }
   set peerjs(value) { return this.setPeerJS(value); }
 
-  get id() { return this.getId(); };
+  get id() { return this.getId(); }
   set id(value) { return this.setId(value); }
+
+  get cache() { return this.getCache(); }
 
   /**
    * getters
@@ -86,6 +90,7 @@ class ServerPeerJS {
 
   getId() { return this._id; }
   getPeerJS() { return this._peerjs; }
+  getCache() { return this._cache; }
 
   /**
    * setters
@@ -174,21 +179,31 @@ class ServerPeerJS {
   _dispatchMetadataJoin(data) {
     this.clients[data.id].username = data.username;
     this.clients[data.id].is_joined = true;
-    for (let client_id in this.clients) {  // TODO(minkezhang): change to for..of syntax
+    // TODO(minkezhang): change to for..of syntax
+    for (let client_id in this.clients) {
       if (this.clients[client_id].is_joined) {
-        let pseudo_join = new MetadataPseudoJoinMessage(client_id, this.clients[client_id].username);
+        let pseudo_join = new MetadataPseudoJoinMessage(
+            client_id, this.clients[client_id].username);
         this.clients[data.id].metadata.send(pseudo_join.json);
         if (client_id != data.id) {
           this.clients[client_id].metadata.send(data);
         }
       }
     }
+    for (let message of this.cache) {
+      this.clients[data.id].metadata.send(message);
+    }
   }
 
   _dispatchMetadataDrop(data) {
     delete this.clients[data.id];
-    for (let client_id in this.clients) {  // TODO(minkezhang): change to for..of syntax
+    // TODO(minkezhang): change to for..of syntax
+    for (let client_id in this.clients) {
       this.clients[client_id].metadata.send(data);
     }
+  }
+
+  _dispatchMetadataChat(data) {
+    this.cache.push(data);
   }
 }
