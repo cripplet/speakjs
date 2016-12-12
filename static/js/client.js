@@ -318,6 +318,10 @@ class ClientPeerJS {
   }
 
   broadcast(message) {
+    message = $.trim(message)
+    if (!/\S/.test(message)) {
+      return;
+    }
     let data = new ChatMessage(this.id, this.username, message);
     this.peers[this.id].cache.push(data.json);
     for (let peer_id in this.peers) {
