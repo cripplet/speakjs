@@ -90,7 +90,7 @@ class PeerConnection {
  * @class
  */
 class ClientPeerJS {
-  constructor() {
+  constructor(do_render) {
     this._device = null;
     this._id = null;
     this._last_recv = null;
@@ -98,6 +98,10 @@ class ClientPeerJS {
     this._peerjs = null;
     this._username = null;
     this._cache = new CircularQueue(10);
+    this._do_render = false;
+    if (do_render) {
+      this._do_render = true;
+    }
 
     navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
       this.device = stream;
@@ -141,6 +145,7 @@ class ClientPeerJS {
   set device(value) { return this.setDevice(value); }
 
   get cache() { return this.getCache(); }
+  get do_render() { return this.getDoRender(); }
 
   /**
    * methods
@@ -179,6 +184,7 @@ class ClientPeerJS {
   getMetadata() { return this._metadata; }
   getLastRecv() { return this._last_recv; }
   getCache() { return this._cache; }
+  getDoRender() { return this._do_render; }
 
   getPeersEntry(target, key) {
     if (!(key in target)) {
@@ -207,7 +213,7 @@ class ClientPeerJS {
       this._peerjs.on("close", () => this.onPeerJSClose());
       this._peerjs.on("call", (media_connection) => this.onPeerJSCall(media_connection));
       this._peerjs.on("connection", (data_connection) => this.onPeerJSConnection(data_connection));
-      this._peerjs.on("disconnected", () => this.onPeerJSDisconnected));
+      this._peerjs.on("disconnected", () => this.onPeerJSDisconnected());
     }
   }
 
@@ -257,8 +263,13 @@ class ClientPeerJS {
 
   onPeerJSClose() { this.id = null; }
 
-  onPeerJSDisconnect() {
-    this._peerjs.reconnect();
+  onPeerJSDisconnected() {
+    try {
+      this._peerjs.reconnect();
+    }
+    catch (e) {
+      console.log("Error: Cannot reconnect.");
+    }
   }
 
   onMetadataOpen() {

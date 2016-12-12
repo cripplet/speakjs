@@ -55,6 +55,7 @@ QUnit.test("CircularQueue callback", (assert) => {
 QUnit.test("ClientPeerJS.construct", (assert) => {
   let client_peerjs = new ClientPeerJS();
   assert.notOk(client_peerjs.device);
+  assert.strictEqual(client_peerjs.do_render, false);
   let done = assert.async();
 
   setTimeout(() => {
@@ -92,6 +93,7 @@ QUnit.test("ClientPeerJS.id.set", (assert) => {
 
 QUnit.test("ServerPeerJS.construct", (assert) => {
   let server_peerjs = new ServerPeerJS();
+  assert.strictEqual(server_peerjs.do_render, false);
   let done = assert.async();
 
   setTimeout(() => {

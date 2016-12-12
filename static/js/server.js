@@ -54,10 +54,14 @@ class ClientConnection {
  * @class
  */
 class ServerPeerJS {
-  constructor() {
+  constructor(do_render) {
     this._peerjs = null;
     this._id = null;
     this._cache = new CircularQueue(10);
+    this._do_render = false;
+    if (do_render) {
+      this._do_render = true;
+    }
 
     this.clients = new Proxy(new Map(), {
       set: (target, key, value) => this.setClientsEntry(target, key, value),
@@ -83,6 +87,7 @@ class ServerPeerJS {
   set id(value) { return this.setId(value); }
 
   get cache() { return this.getCache(); }
+  get do_render() { return this.getDoRender(); }
 
   /**
    * getters
@@ -91,6 +96,7 @@ class ServerPeerJS {
   getId() { return this._id; }
   getPeerJS() { return this._peerjs; }
   getCache() { return this._cache; }
+  getDoRender() { return this._do_render; }
 
   /**
    * setters
@@ -109,7 +115,7 @@ class ServerPeerJS {
       this._peerjs.on("open", (id) => this.onPeerJSOpen(id));
       // this._peerjs.on("close", () => { /* on closing a peerjs connection */ }());
       this._peerjs.on("connection", (data_connection) => this.onPeerJSConnection(data_connection));
-      // this._peerjs.on("disconnected", () => { this._peerjs.reconnect(); }());
+      this._peerjs.on("disconnected", () => this.onPeerJSDisconnected());
     }
   }
 
@@ -156,6 +162,15 @@ class ServerPeerJS {
     this.clients[data_connection.peer].metadata = data_connection;
     this.clients[data_connection.peer].metadata.on(
         "data", this.onMetadataData(data_connection.peer));
+  }
+
+  onPeerJSDisconnected() {
+    try {
+      this._peerjs.reconnect();
+    }
+    catch (e) {
+      console.log("Error: Cannot reconnect.");
+    }
   }
 
   /**
