@@ -3,12 +3,13 @@
  * @class
  */
 class ClientConnection {
-  constructor() {
+  constructor(do_render) {
     this._id = null;
     this._username = null;
     this._metadata = null;
     this._last_recv = null;
     this.is_joined = false;
+    this._do_render = !!do_render;
   }
 
   get id() { return this.getId(); }
@@ -23,6 +24,8 @@ class ClientConnection {
   get last_recv() { return this.getLastRecv(); }
   set last_recv(value) { return this.setLastRecv(value); }
 
+  get do_render() { return this.getDoRender(); }
+
   /**
    * getters
    */
@@ -31,21 +34,39 @@ class ClientConnection {
   getMetadata() { return this._metadata; }
   getLastRecv() { return this._last_recv; }
   getId() { return this._id; }
+  getDoRender() { return this._do_render; }
 
   /**
    * setters
    */
 
   // TODO(minkezhang): install handler
-  setUsername(value) { this._username = value; }
+  setUsername(value) {
+    if (this._username != null) {
+      throw new Error("Cannot set property more than once.");
+    }
+    this._username = value;
+  }
 
   // TODO(minkezhang): install handler
   setMetadata(value) { this._metadata = value; }
 
-  // TODO(minkezhang): install HTML
-  setLastRecv(value) { this._last_recv = value; }
+  setLastRecv(value) {
+    this._last_recv = value;
+    if (this.do_render) {
+      $(sprintf(
+          layout.SERVER_CLIENTS_ENTRY_LAST_RECV_FMT,
+          {client_id: this.id})
+      ).text(JSON.stringify(this.last_recv));
+    }
+  }
 
-  setId(value) { this._id = value; }
+  setId(value) {
+    if (this._id != null) {
+      throw new Error("Cannot set property more than once.");
+    }
+    this._id = value;
+  }
 }
 
 
@@ -57,7 +78,7 @@ class ServerPeerJS {
   constructor(do_render) {
     this._peerjs = null;
     this._id = null;
-    this._cache = new CircularQueue(10);
+    this._cache = new CircularQueue(10, (data) => this.renderCache(data));
     this._do_render = !!do_render;
 
     this.clients = new Proxy(new Map(), {
@@ -99,15 +120,23 @@ class ServerPeerJS {
    * setters
    */
 
-  // TODO(minkezhang): set element property in HTML
-  setId(value) { this._id = value; }
+  setId(value) {
+    this._id = value;
+    if (this.do_render) {
+      $(layout.SERVER_SERVER_ID).text(this.id);
+      $(layout.SERVER_CLIENT_URL).text(sprintf(
+          "%(base)s?server=%(id)s", {
+              base: window.location.href.match(/^.*\//),
+              id: this.id,
+          }));
+    }
+  }
 
   setPeerJS(value) {
     if (this._peerjs) {
       this._peerjs.destroy();
     }
     this._peerjs = value;
-    this.id = this.peerjs.id;
     if (this._peerjs) {
       this._peerjs.on("open", (id) => this.onPeerJSOpen(id));
       // this._peerjs.on("close", () => { /* on closing a peerjs connection */ }());
@@ -130,6 +159,9 @@ class ServerPeerJS {
    */
 
   deleteClientsEntry(target, key) {
+    if (this.do_render) {
+      $(sprintf(layout.SERVER_CLIENTS_ENTRY, {client_id: key})).remove();
+    }
     if (target[key].metadata != null) {
       target[key].metadata.close();
     }
@@ -154,11 +186,23 @@ class ServerPeerJS {
    * @param {PeerJS.dataConnection} data_connection The connection to the client.
    */
   onPeerJSConnection(data_connection) {
-    this.clients[data_connection.peer] = new ClientConnection();
+    this.clients[data_connection.peer] = new ClientConnection(this.do_render);
+    this.clients[data_connection.peer].id = data_connection.peer;
     this.clients[data_connection.peer].username = data_connection.metadata.username;
     this.clients[data_connection.peer].metadata = data_connection;
     this.clients[data_connection.peer].metadata.on(
         "data", this.onMetadataData(data_connection.peer));
+    this.clients[data_connection.peer].metadata.on(
+        "close", this.onMetadataClose(data_connection.peer));
+
+    if (this.do_render) {
+      T.render("server_client_entry", (t) => {
+        $(layout.SERVER_CLIENTS).append(t({
+            client_id: data_connection.peer,
+            username: data_connection.metadata.username,
+        }));
+      });
+    }
   }
 
   onPeerJSDisconnected() {
@@ -184,12 +228,28 @@ class ServerPeerJS {
     }
   }
 
+  onMetadataClose(client_id) {
+    return () => {
+      delete this.clients[client_id];
+    }
+  }
+
+  renderCache(data) {
+    if (this.do_render) {
+      T.render("server_chat_entry", (t) => {
+        $(layout.SERVER_CHAT).append(t({data: JSON.stringify(data)}));
+      });
+      if ($(layout.SERVER_CHAT).children().length >= this.cache.size) {
+        $(layout.SERVER_CHAT).find(":first-child").remove();
+      }
+    }
+  }
+
   /**
    * dispatch table functions
    */
 
   _dispatchMetadataJoin(data) {
-    this.clients[data.id].username = data.username;
     this.clients[data.id].is_joined = true;
     // TODO(minkezhang): change to for..of syntax
     for (let client_id in this.clients) {

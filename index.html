@@ -9,6 +9,7 @@
 
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.6/handlebars.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sprintf/1.0.3/sprintf.js"></script>
 <script type="text/javascript" src="/static/js/modernizr.js"></script>
 <script type="text/javascript" src="/static/js/peerjs/0.3.14/peer.js"></script>
 <script type="text/javascript" src="/static/js/config.js"></script>
@@ -18,11 +19,15 @@
 </head>
 <body>
 
+<div id="client_info"></div>
+<div id="peer_list"></div>
+<div id="chat_log"></div>
+
 <form id="form_server_connect">
   <input id="form_server_connect_server_id" type="text" placeholder="server" />
   <input id="form_server_connect_username" type="text" placeholder="username" />
   <button type="submit">connect</button>
-  <button type="button">drop</button>
+  <button type="button" id="form_server_connect_drop">drop</button>
 </form>
 
 <form id="form_chat">
@@ -39,20 +44,27 @@ $(document).ready(function() {
 
   let client = new ClientPeerJS(true);
   T.render("chat_log", (t) => {
-    $("body").append(t({name: "MINKE"}));
+    $("body").append(t());
   });
 
-
   $("#form_server_connect").on("submit", function() {
-    client.join($("#form_server_connect_server_id").val(), $("#form_server_connect_username").val(""));
+    client.join($("#form_server_connect_server_id").val(), $("#form_server_connect_username").val());
     $("#form_server_connect_server_id").val("");
     $("#form_server_connect_username").val("");
     return false;
   });
+
   $("#form_chat").on("submit", function() {
     client.broadcast($("#form_chat_content").val());
     $("#form_chat_content").val("");
     return false;
+  });
+
+  $("#form_server_connect_drop").on("click", function() {
+    client.drop();
+  });
+  window.addEventListener("unload", function(e) {
+    client.peerjs.destroy();
   });
 });
 </script>

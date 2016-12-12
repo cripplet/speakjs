@@ -289,8 +289,8 @@ QUnit.test("ClientPeerJS chat", (assert) => {
         alice_cache_msg = alice.peers[alice.id].cache.pop();
         bob_cache_msg = bob.peers[alice.id].cache.pop();
         server_cache_msg = server.cache.pop();
+        assert.strictEqual(alice_cache_msg.username, "alice");
         assert.strictEqual(alice_cache_msg.message, kMessage);
-
 
         assert.deepEqual(alice_cache_msg, bob_cache_msg);
         assert.deepEqual(server_cache_msg, alice_cache_msg);

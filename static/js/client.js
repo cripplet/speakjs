@@ -59,13 +59,7 @@ class PeerConnection {
     this._text.on("data", (data) => this.onTextData(data));
   }
 
-  // TODO(minkezhang): install handler
-  setId(value) {
-    if (this._id != null) {
-      throw new Error("cannot set property more than once");
-    }
-    this._id = value;
-  }
+  setId(value) { this._id = value; }
 
   // TODO(minkezhang): update audio element
   setStream(value) { this._stream = value; }
@@ -155,6 +149,9 @@ class ClientPeerJS {
    * @param {string} username The username of the SpeakJS client.
    */
   join(server_id, username) {
+    if (this.metadata) {
+      this.drop();
+    }
     this.username = username;
     this.metadata = this.peerjs.connect(server_id, {
         reliable: true,
@@ -168,6 +165,7 @@ class ClientPeerJS {
   drop() {
     let data = new MetadataDropMessage(this.id);
     this.metadata.send(data.json);
+    delete this.metadata;
   }
 
   /**

@@ -3,140 +3,38 @@
 <head>
 
 <meta charset="utf-8">
-<title>SpeakerJS Server</title>
+<title>SpeakerJS Client</title>
 
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" />
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" /> 
 
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.6/handlebars.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/sprintf/1.0.3/sprintf.js"></script>
 <script type="text/javascript" src="/static/js/modernizr.js"></script>
 <script type="text/javascript" src="/static/js/peerjs/0.3.14/peer.js"></script>
 <script type="text/javascript" src="/static/js/config.js"></script>
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.6/handlebars.min.js"></script>
-
-<style>
-  label { display: none; }
-</style>
-
-<script id="client_entry_template" type="text/x-handlebars-template">
-  <dl id="client_{{client_entry_id}}_entry">
-    <dt id="client_{{client_entry_id}}_key">username</dt>
-    <dd id="client_{{client_entry_id}}_val">{{client_entry_username}}</dd>
-    <dt id="client_{{client_entry_id}}_metadata_status_key">status</dt>
-    <dd id="client_{{client_entry_id}}_metadata_status_val"></dd>
-    <dt id="client_{{client_entry_id}}_metadata_last_message_key">last message received</dt>
-    <dd id="client_{{client_entry_id}}_metadata_last_message_val"></dd>
-  </dl>
-</script>
+<script type="text/javascript" src="/static/js/lib.js"></script>
+<script type="text/javascript" src="/static/js/server.js"></script>
 
 </head>
 <body>
 
-<dl id="metadata" class="dl-horizontal">
-  <dt id="metadata_server_id_key">server</dt>
-  <dd id="metadata_server_id_val"></dd>
-</dl>
-
-<div id="clients" class="dl-horizontal">
-  <!--
-    <dt id="client_axlk..._key">Minke</dt>
-    <dd id="client_axlk..._val">
-      ...
-    </dd>
-    -->
+<div id="server_info">
+  <div id="server_server_id_key">Server ID</div>
+  <div id="server_server_id_val"></div>
+  <div id="server_client_url_key">Client URL</div>
+  <div id="server_client_url_val"></div>
+  <div id="server_client_list">
+    <div id="server_client_list_key">Clients</div>
+    <div id="server_client_list_val"></div>
+  </div>
+  <div id="server_cache_key">Chat Log Cache</div>
+  <div id="server_cache_val"></div>
 </div>
 
-<script type="text/javascript">
-var client_entry_template = Handlebars.compile($("#client_entry_template").html());
-
-var metadata_server_id_val = $("dd#metadata_server_id_val");
-
-var _clients = {};
-
-var _cxn = new Peer(config);
-
-var datachannelOnOpen = function(id) {
-  var _datachannelOnOpen = function() {
-    $("dd#client_" + id + "_metadata_status_val").text("connected");
-  }
-  return _datachannelOnOpen;
-}
-
-var datachannelOnClose = function(id) {
-  var _datachannelOnClose = function() {
-    $("dl#client_" + id + "_entry").remove();
-    delete _clients[id];
-
-    for (var client_id in _clients) {
-      _clients[client_id].send(MetadataDropMessage(id));
-    }
-  }
-  return _datachannelOnClose;
-}
-
-var _datachannelFuncHandlerConn = function(message) {
-  for (var client_id in _clients) {
-    if (client_id != message.id) {
-      _clients[client_id].send(message);  // broadcast there exists a new connection
-    }
-    _clients[message.id].send(MetadataPseudoConnMessage(client_id, _clients[client_id].metadata.username));  // update new connection
-  }
-}
-
-var _datachannelFuncHandlerDrop = function(message) {
-  for (var client_id in _clients) {
-    if (client_id != message.id) {
-      client[message.id].send(MetadataDropMessage(client_id));
-    }
-    client[client_id].send(message);
-  }
-}
-
-var datachannel_func_handler = {}
-datachannel_func_handler[TYPE_METADATA_CONN] = _datachannelFuncHandlerConn;
-datachannel_func_handler[TYPE_METADATA_DROP] = _datachannelFuncHandlerDrop;
-
-var datachannelOnData = function(id) {
-  var _datachannelOnData = function(data) {
-    $("dd#client_" + id + "_metadata_last_message_val").text(JSON.stringify(data));
-    datachannel_func_handler[data.type](data);
-  }
-  return _datachannelOnData;
-}
-
-var cxnOnConnection = function(datachannel) {
-  _clients[datachannel.peer] = datachannel;
-
-  $("div#clients").append(client_entry_template({
-      client_entry_id: datachannel.peer,
-      client_entry_username: datachannel.metadata.username
-  }));
-  $("dd#client_" + datachannel.peer + "_metadata_status_val").text("connecting");
-
-  datachannel.on("open", datachannelOnOpen(datachannel.peer));
-  datachannel.on("close", datachannelOnClose(datachannel.peer));
-
-  datachannel.on("data", datachannelOnData(datachannel.peer));
-}
-
-var cxnOnOpen = function(id) {
-  metadata_server_id_val.text(id);
-}
-
-var cxnOnClose = function() {
-  metadata_server_id_val.text("");
-}
-
+<script>
 $(document).ready(function() {
-  logSupportStatus();
-
-  _cxn.on("open", cxnOnOpen);
-  _cxn.on("close", cxnOnClose);
-
-  _cxn.on("connection", cxnOnConnection);
-
-  window.addEventListener("unload", function(e) {
-    _cxn.destroy();
-  });
+  let server = new ServerPeerJS(true);
 });
 </script>
 

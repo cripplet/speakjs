@@ -9,6 +9,20 @@ let config = {
   }
 };
 
+/**
+ * Layout IDs
+ */
+let layout = {
+  SERVER_SERVER_ID: "#server_server_id_val",
+  SERVER_CLIENT_URL: "#server_client_url_val",
+
+  SERVER_CHAT: "#server_cache_val",
+
+  SERVER_CLIENTS: "#server_client_list_val",
+  SERVER_CLIENTS_ENTRY: "#server_client_entry_%(client_id)s",
+  SERVER_CLIENTS_ENTRY_LAST_RECV_FMT: "#server_client_entry_last_recv_%(client_id)s_val",
+}
+
 let logSupportStatus = () => {
   let status = {
       getusermedia: Modernizr.getusermedia,
