@@ -32,18 +32,26 @@
 
 <script>
 $(document).ready(function() {
-  var server_value = getUrlParameter("server");
+  let server_value = getUrlParameter("server");
   if (server_value) {
     $("#form_server_connect_server_id").val(server_value);
   }
 
-  var client = new ClientPeerJS();
-  console.log(client);
+  let client = new ClientPeerJS(true);
+  T.render("chat_log", (t) => {
+    $("body").append(t({name: "MINKE"}));
+  });
+
 
   $("#form_server_connect").on("submit", function() {
+    client.join($("#form_server_connect_server_id").val(), $("#form_server_connect_username").val(""));
+    $("#form_server_connect_server_id").val("");
+    $("#form_server_connect_username").val("");
     return false;
   });
   $("#form_chat").on("submit", function() {
+    client.broadcast($("#form_chat_content").val());
+    $("#form_chat_content").val("");
     return false;
   });
 });

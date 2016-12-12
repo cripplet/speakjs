@@ -80,6 +80,7 @@ class BaseMessage {
   constructor(type, id) {
     this.type = type;
     this.id = id;
+    this.datetime = new Date();
   };
   get json() { return this.getJson(); }
 

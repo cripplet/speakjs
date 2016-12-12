@@ -58,10 +58,7 @@ class ServerPeerJS {
     this._peerjs = null;
     this._id = null;
     this._cache = new CircularQueue(10);
-    this._do_render = false;
-    if (do_render) {
-      this._do_render = true;
-    }
+    this._do_render = !!do_render;
 
     this.clients = new Proxy(new Map(), {
       set: (target, key, value) => this.setClientsEntry(target, key, value),

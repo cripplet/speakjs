@@ -164,11 +164,15 @@ QUnit.test("ClientPeerJS metadata data handling", (assert) => {
     client_peerjs.join(server_peerjs.id, username);
     done();
     setTimeout(() => {
-      assert.deepEqual(server_peerjs.clients[client_peerjs.id].last_recv, message.json);
+      assert.deepEqual(server_peerjs.clients[client_peerjs.id].last_recv.id, message.json.id);
+      assert.deepEqual(server_peerjs.clients[client_peerjs.id].last_recv.username, message.json.username);
+      assert.deepEqual(server_peerjs.clients[client_peerjs.id].last_recv.type, message.json.type);
       done();
       setTimeout(function () {
         let message = new MetadataPseudoJoinMessage(client_peerjs.id, client_peerjs.username);
-        assert.deepEqual(client_peerjs.last_recv, message.json);
+        assert.deepEqual(client_peerjs.last_recv.id, message.json.id);
+        assert.deepEqual(client_peerjs.last_recv.username, message.json.username);
+        assert.deepEqual(client_peerjs.last_recv.type, message.json.type);
         assert.strictEqual(client_peerjs.id in client_peerjs.peers, true);
         done();
       }, timeout);

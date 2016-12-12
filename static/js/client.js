@@ -98,10 +98,7 @@ class ClientPeerJS {
     this._peerjs = null;
     this._username = null;
     this._cache = new CircularQueue(10);
-    this._do_render = false;
-    if (do_render) {
-      this._do_render = true;
-    }
+    this._do_render = !!do_render;
 
     navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
       this.device = stream;
