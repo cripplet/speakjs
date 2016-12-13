@@ -38,6 +38,8 @@
   <button type="submit">Submit</button>
 </form>
 
+<button type="button" id="toggle_mic_mute">Mute</button>
+
 <div id="client_peer_list">
   <div id="client_peer_list_key">Peers</div>
   <div id="client_peer_list_val"></div>
@@ -73,6 +75,11 @@ $(document).ready(function() {
   $("#form_server_connect_drop").on("click", function() {
     client.drop();
   });
+
+  $(layout.TOGGLE_MIC_MUTE).on("click", function() {
+    client.toggle_mute();
+  });
+
   window.addEventListener("unload", function(e) {
     client.peerjs.destroy();
   });

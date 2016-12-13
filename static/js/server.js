@@ -240,7 +240,7 @@ class ServerPeerJS {
       T.render("server_chat_entry", (t) => {
         $(layout.SERVER_CHAT).append(t({data: JSON.stringify(data)}));
       });
-      if ($(layout.SERVER_CHAT).children().length >= this.cache.size) {
+      if ($(layout.SERVER_CHAT).children().length > this.cache.size) {
         $(layout.SERVER_CHAT).find(":first-child").remove();
       }
     }

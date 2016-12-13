@@ -33,6 +33,8 @@ let layout = {
   CLIENT_PEERS_ENTRY_LAYOUT: "client_peer_entry",
   CLIENT_PEERS_ENTRY_FMT: "#client_peer_entry_%(peer_id)s",
   CLIENT_PEERS_ENTRY_AUDIO_FMT: "#client_peer_entry_audio_%(peer_id)s_audio",
+
+  TOGGLE_MIC_MUTE: "#toggle_mic_mute",
 }
 
 let logSupportStatus = () => {

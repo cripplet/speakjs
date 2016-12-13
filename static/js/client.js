@@ -92,6 +92,7 @@ class ClientPeerJS {
     this._cache = new CircularQueue(10, (data) => this.renderCache(data));
     this._server_id = null;
     this._do_render = !!do_render;
+    this._is_muted = false;
 
     navigator.mediaDevices.getUserMedia({audio: true}).then((stream) => {
       this.device = stream;
@@ -137,6 +138,9 @@ class ClientPeerJS {
   get server_id() { return this.getServerId(); }
   set server_id(value) { return this.setServerId(value); }
 
+  get is_muted() { return this.getIsMuted(); }
+  set is_muted(value) { return this.setIsMuted(value); }
+
   get cache() { return this.getCache(); }
   get do_render() { return this.getDoRender(); }
 
@@ -174,6 +178,13 @@ class ClientPeerJS {
     for (let peer_id in this.peers) {
       delete this.peers[peer_id];
     }
+    if (this.do_render) {
+      $(layout.CLIENT_CHAT).empty();
+    }
+  }
+
+  toggle_mute() {
+    this.is_muted = !this.is_muted;
   }
 
   /**
@@ -189,6 +200,7 @@ class ClientPeerJS {
   getCache() { return this._cache; }
   getDoRender() { return this._do_render; }
   getServerId() { return this._server_id; }
+  getIsMuted() { return this._is_muted; }
 
   getPeersEntry(target, key) {
     if (!(key in target)) {
@@ -242,6 +254,15 @@ class ClientPeerJS {
     }
     target[key] = value;
     return true;
+  }
+
+  setIsMuted(value) {
+    this._is_muted = value;
+    this.device.getAudioTracks()[0].enabled = !value;
+    if (this.do_render) {
+      let text = value ? "Unmute" : "Mute";
+      $(layout.TOGGLE_MIC_MUTE).text(text);
+    }
   }
 
   /**
