@@ -73,7 +73,15 @@ class PeerConnection {
    */
 
   onMediaStream(stream) { this.stream = stream; }
-  onTextData(data) { this.cache.push(data); }
+  onTextData(data) {
+    if (this.do_render) {
+      if (!document.hasFocus()) {  // Only play sound if document is not in focus.
+        $(layout.AUDIO_RECV)[0].currentTime = 0;
+        $(layout.AUDIO_RECV)[0].play();
+      }
+    }
+    this.cache.push(data);
+  }
 }
 
 
@@ -180,6 +188,8 @@ class ClientPeerJS {
     }
     if (this.do_render) {
       $(layout.CLIENT_CHAT).empty();
+      $(layout.AUDIO_LOGOUT)[0].currentTime = 0;
+      $(layout.AUDIO_LOGOUT)[0].play();
     }
   }
 
@@ -352,6 +362,10 @@ class ClientPeerJS {
       return;
     }
     let data = new ChatMessage(this.id, this.username, message);
+    if (this.do_render) {
+      $(layout.AUDIO_SEND)[0].currentTime = 0;
+      $(layout.AUDIO_SEND)[0].play();
+    }
     this.peers[this.id].cache.push(data.json);
     for (let peer_id in this.peers) {
       if (peer_id != this.id) {
@@ -375,6 +389,8 @@ class ClientPeerJS {
           username: data.username,
         }));
       });
+      $(layout.AUDIO_LOGIN)[0].currentTime = 0;
+      $(layout.AUDIO_LOGIN)[0].play();
     }
   }
 
@@ -388,6 +404,10 @@ class ClientPeerJS {
 
   _dispatchMetadataDrop(data) {
     delete this.peers[data.id];
+    if (this.do_render) {
+      $(layout.AUDIO_LOGOUT)[0].currentTime = 0;
+      $(layout.AUDIO_LOGOUT)[0].play();
+    }
   }
 
   _dispatchMetadataChat(data) {

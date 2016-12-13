@@ -35,6 +35,10 @@ let layout = {
   CLIENT_PEERS_ENTRY_AUDIO_FMT: "#client_peer_entry_audio_%(peer_id)s_audio",
 
   TOGGLE_MIC_MUTE: "#toggle_mic_mute",
+  AUDIO_LOGIN: "#audio_join",
+  AUDIO_LOGOUT: "#audio_drop",
+  AUDIO_SEND: "#audio_send",
+  AUDIO_RECV: "#audio_recv",
 }
 
 let logSupportStatus = () => {
