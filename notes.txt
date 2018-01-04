@@ -1,0 +1,27 @@
+speakjs
+
+server:  # CREATE SERVER, CONNECT TO SERVER
+  server ID #
+  server token #
+  pretty-url string #
+  list of clients
+  list of messages (limit 100) #
+  last-pinged, holder ID --> renegotiated tag or something
+
+client:
+  client ID
+  username
+  ip-address
+  last-pinged
+
+
+flakey connection
+  client
+    server pings every client once every 5s
+    if client doesn't respond twice in a row (10s), delete from pool
+
+  server
+    server pings firebase every 5s
+    client: check firebase every 10s, if last-pinged timeout, attempt recreate (if server-token exists on client)
+      do a lock on server, update the holder ID
+    client: rejoin server if holder ID different
