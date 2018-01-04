@@ -1,0 +1,21 @@
+<script src="https://cdn.jsdeliver.net/npm/vue"></script>
+
+<div id="app" v-bind:title="message" v-if="seen">
+{{ message }}
+<a v-bind:href="message">{{ message }}</a>
+<input v-model="message">
+<input v-model="seen">
+<input v-model="d">
+<button v-bind:disabled="d">Button</button>
+</div>
+
+<script type="application/javascript">
+var app = new Vue({
+  el: '#app',
+  data: {
+    message: 'Hello Vue!',
+    seen: true,
+    d: true,
+  }
+})
+</script>
