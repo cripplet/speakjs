@@ -1,7 +1,9 @@
 <script src="https://cdn.jsdeliver.net/npm/vue"></script>
+<script src="/static/js/peer-0.3.14.js"></script>
 
 <div id="app" v-bind:title="message" v-if="seen">
 {{ message }}
+<span>{{ p.id }}{{ q.id }}</span>
 <a v-bind:href="message">{{ message }}</a>
 <input v-model="message">
 <input v-model="seen">
@@ -10,12 +12,37 @@
 </div>
 
 <script type="application/javascript">
+var key = "dnu57xap0ysyvi";
+var config = {
+  key: key,
+};
+
+var p = new Peer({ key: key });
+var q = new Peer({ key: key });
+
+cpq = p.connect(q.id);
+
+cpq.on('open', function() {
+  cpq.send('hi there!');
+});
+
+q.on('connection', function(cpq) {
+  cpq.on('data', function(d) {
+    console.log(d);
+  });
+});
+
+console.log(p);
+console.log(p.id);
+
 var app = new Vue({
   el: '#app',
   data: {
     message: 'Hello Vue!',
     seen: true,
     d: true,
+    p: p,
+    q: q,
   }
 })
 </script>
