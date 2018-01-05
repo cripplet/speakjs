@@ -1,3 +1,16 @@
+# VueJS
+/dist/
+/test/unit/coverage/
+/test/e2e/reports/
+    
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
 # Logs
 logs
 *.log
